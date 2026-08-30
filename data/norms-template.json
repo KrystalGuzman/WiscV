@@ -1,0 +1,74 @@
+{
+  "_README": [
+    "TEMPLATE ONLY -- every number below is synthetic filler, not WISC-V norms.",
+    "No normative data ships with this repository. If you are licensed to use the",
+    "official WISC-V norms, transcribe them into this shape and load the file with",
+    "'Load norms' in the app. The file is read in your browser only; it is never",
+    "uploaded, and it is not written back to this repository.",
+    "",
+    "A lookup table is an array of {max, score} rungs, ordered by ascending max.",
+    "The first rung whose 'max' is >= the input wins, so published tables that",
+    "collapse a band of raw scores onto one scaled score transcribe directly:",
+    "  [{max: 5, score: 1}, {max: 12, score: 7}]  =>  raw 0-5 scores 1, raw 6-12 scores 7.",
+    "",
+    "'ageBands' drives raw-score-to-scaled-score conversion and is keyed by age in",
+    "whole months. 'compositeTables' overrides the model's estimated",
+    "sum-of-scaled-scores-to-composite conversion. Either section may be omitted."
+  ],
+  "version": 1,
+  "label": "Synthetic template (not real norms)",
+  "ageBands": [
+    {
+      "id": "8:0-8:3",
+      "minMonths": 96,
+      "maxMonths": 99,
+      "subtests": {
+        "si": [
+          { "max": 2, "score": 1 },
+          { "max": 6, "score": 4 },
+          { "max": 11, "score": 7 },
+          { "max": 17, "score": 10 },
+          { "max": 24, "score": 13 },
+          { "max": 31, "score": 16 },
+          { "max": 54, "score": 19 }
+        ],
+        "cd": [
+          { "max": 4, "score": 1 },
+          { "max": 14, "score": 4 },
+          { "max": 27, "score": 7 },
+          { "max": 42, "score": 10 },
+          { "max": 58, "score": 13 },
+          { "max": 74, "score": 16 },
+          { "max": 117, "score": 19 }
+        ]
+      }
+    },
+    {
+      "id": "8:4-8:7",
+      "minMonths": 100,
+      "maxMonths": 103,
+      "subtests": {
+        "si": [
+          { "max": 3, "score": 1 },
+          { "max": 7, "score": 4 },
+          { "max": 12, "score": 7 },
+          { "max": 18, "score": 10 },
+          { "max": 25, "score": 13 },
+          { "max": 32, "score": 16 },
+          { "max": 54, "score": 19 }
+        ]
+      }
+    }
+  ],
+  "compositeTables": {
+    "VCI": [
+      { "max": 4, "score": 45 },
+      { "max": 10, "score": 62 },
+      { "max": 16, "score": 84 },
+      { "max": 20, "score": 100 },
+      { "max": 26, "score": 117 },
+      { "max": 32, "score": 133 },
+      { "max": 38, "score": 155 }
+    ]
+  }
+}

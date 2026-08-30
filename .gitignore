@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+*.log
+
+# Never commit examinee data or transcribed norms: both are files this app
+# reads at runtime and neither belongs in version control.
+/norms/
+*.protocol.json
+wiscv-*.json
+wiscv-*.csv
+!data/norms-template.json

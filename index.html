@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WISC-V Score Calculator</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f5d8a'/%3E%3Cpath d='M5 22 L11 12 L16 18 L21 8 L27 20' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <h1>WISC&#8209;V Score Calculator</h1>
+      <p class="tagline">Composite indexes, percentiles, confidence intervals and discrepancy analysis</p>
+    </div>
+    <div class="masthead-actions no-print">
+      <button type="button" id="btn-demo" class="btn btn-quiet">Load example</button>
+      <button type="button" id="btn-clear" class="btn btn-quiet">Clear</button>
+      <button type="button" id="btn-print" class="btn btn-primary">Print report</button>
+    </div>
+  </div>
+</header>
+
+<div class="notice notice-important">
+  <strong>Not a substitute for the published test.</strong>
+  This tool performs the <em>arithmetic</em> of WISC&#8209;V scoring from scaled scores you
+  enter. It contains no WISC&#8209;V test items and no copyrighted norms tables. Composite
+  conversions are estimated from an explicit psychometric model
+  (<a href="docs/METHODOLOGY.md">methodology</a>), so they will differ from the official
+  tables by a point or two. Administration, scoring and interpretation of the WISC&#8209;V
+  require appropriate professional qualifications.
+</div>
+
+<main>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel no-print" id="panel-setup">
+    <h2>Examinee &amp; settings</h2>
+    <div class="grid-setup">
+      <label>Examinee ID
+        <input type="text" id="f-examinee" placeholder="e.g. 2026-014" autocomplete="off">
+      </label>
+      <label>Examiner
+        <input type="text" id="f-examiner" placeholder="Name" autocomplete="off">
+      </label>
+      <label>Date of birth
+        <input type="date" id="f-dob">
+      </label>
+      <label>Date of testing
+        <input type="date" id="f-test-date">
+      </label>
+      <label>Chronological age
+        <output id="f-age" class="readonly-output">&mdash;</output>
+      </label>
+      <label>Significance level
+        <select id="f-alpha">
+          <option value="0.15">.15</option>
+          <option value="0.05" selected>.05</option>
+          <option value="0.01">.01</option>
+        </select>
+      </label>
+      <label>Confidence interval
+        <select id="f-ci-basis">
+          <option value="true" selected>Estimated true score</option>
+          <option value="obtained">Obtained score</option>
+        </select>
+      </label>
+      <label>Strengths / weaknesses vs
+        <select id="f-sw-reference">
+          <option value="fsiq" selected>Mean of 7 FSIQ subtests</option>
+          <option value="primary">Mean of 10 primary subtests</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-entry">
+    <div class="panel-head">
+      <h2>Subtest scaled scores</h2>
+      <p class="panel-note">
+        Enter age&#8209;corrected scaled scores (1&ndash;19).
+        <span id="norms-status" class="norms-status">Raw&#8209;score conversion is off &mdash; no norms loaded.</span>
+      </p>
+    </div>
+    <div id="entry-grid" class="entry-grid"></div>
+    <div class="entry-footer no-print">
+      <span id="completeness" class="completeness"></span>
+      <div class="entry-footer-actions">
+        <label class="file-btn">Load norms<input type="file" id="f-norms" accept="application/json,.json" hidden></label>
+        <button type="button" id="btn-clear-norms" class="btn btn-quiet" hidden>Remove norms</button>
+      </div>
+    </div>
+    <div id="norms-messages" class="messages" hidden></div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-composites">
+    <h2>Composite scores</h2>
+    <div id="fsiq-card" class="fsiq-slot"></div>
+    <h3 class="subhead">Primary index scores</h3>
+    <div id="composite-cards" class="composite-cards"></div>
+    <h3 class="subhead">Ancillary composites</h3>
+    <div id="ancillary-cards" class="composite-cards composite-cards-secondary"></div>
+    <table class="data-table" id="composite-table">
+      <caption>Composite summary</caption>
+      <thead>
+        <tr>
+          <th scope="col">Composite</th>
+          <th scope="col" class="num">Sum of scaled scores</th>
+          <th scope="col" class="num">Composite score</th>
+          <th scope="col" class="num">Percentile</th>
+          <th scope="col" class="num">90% CI</th>
+          <th scope="col" class="num">95% CI</th>
+          <th scope="col">Descriptor</th>
+          <th scope="col" class="num">Reliability</th>
+          <th scope="col" class="num">SEM</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-profile">
+    <h2>Score profile</h2>
+    <figure class="chart-figure">
+      <figcaption>Index scores (mean 100, SD 15)</figcaption>
+      <div id="chart-composites" class="chart"></div>
+    </figure>
+    <figure class="chart-figure">
+      <figcaption>Subtest scaled scores (mean 10, SD 3)</figcaption>
+      <div id="chart-subtests" class="chart"></div>
+    </figure>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-subtests">
+    <h2>Subtest detail</h2>
+    <table class="data-table" id="subtest-table">
+      <caption>Subtest scaled scores and percentiles</caption>
+      <thead>
+        <tr>
+          <th scope="col">Domain</th>
+          <th scope="col">Subtest</th>
+          <th scope="col" class="num">Scaled score</th>
+          <th scope="col" class="num">Percentile</th>
+          <th scope="col">Descriptor</th>
+          <th scope="col" class="num">Reliability</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-sw">
+    <div class="panel-head">
+      <h2>Strengths &amp; weaknesses</h2>
+      <p class="panel-note" id="sw-note"></p>
+    </div>
+    <table class="data-table" id="sw-table">
+      <caption>Each subtest compared with the reference mean</caption>
+      <thead>
+        <tr>
+          <th scope="col">Subtest</th>
+          <th scope="col" class="num">Scaled score</th>
+          <th scope="col" class="num">Difference from mean</th>
+          <th scope="col" class="num">Critical value</th>
+          <th scope="col">Result</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel" id="panel-comparisons">
+    <h2>Discrepancy comparisons</h2>
+    <table class="data-table" id="index-comparison-table">
+      <caption>Index pairs</caption>
+      <thead>
+        <tr>
+          <th scope="col">Comparison</th>
+          <th scope="col" class="num">Score 1</th>
+          <th scope="col" class="num">Score 2</th>
+          <th scope="col" class="num">Difference</th>
+          <th scope="col" class="num">Critical value</th>
+          <th scope="col">Significant</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <table class="data-table" id="subtest-comparison-table">
+      <caption>Subtest pairs within each index</caption>
+      <thead>
+        <tr>
+          <th scope="col">Comparison</th>
+          <th scope="col" class="num">Score 1</th>
+          <th scope="col" class="num">Score 2</th>
+          <th scope="col" class="num">Difference</th>
+          <th scope="col" class="num">Critical value</th>
+          <th scope="col">Significant</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p class="footnote">
+      Critical values are computed from the model's standard errors at the selected
+      significance level. Base rates (how common a difference of a given size is in
+      the standardisation sample) are published table data and are not reproduced here;
+      statistical significance alone does not establish clinical meaningfulness.
+    </p>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section class="panel no-print" id="panel-data">
+    <h2>Save &amp; export</h2>
+    <div class="button-row">
+      <button type="button" id="btn-save" class="btn">Save protocol (JSON)</button>
+      <label class="file-btn">Open protocol<input type="file" id="f-open" accept="application/json,.json" hidden></label>
+      <button type="button" id="btn-csv" class="btn">Export results (CSV)</button>
+    </div>
+    <p class="footnote">
+      Everything stays in this browser tab. Nothing is uploaded, and no scores are stored
+      unless you save a file yourself.
+    </p>
+  </section>
+
+</main>
+
+<footer class="colophon">
+  <p>
+    WISC&#8209;V is a registered trademark of NCS Pearson,&nbsp;Inc. This is an independent
+    scoring aid and is not affiliated with, endorsed by, or derived from the publisher's
+    materials.
+  </p>
+</footer>
+
+<script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

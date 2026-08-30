@@ -1,0 +1,19 @@
+{
+  "name": "wiscv-score-calculator",
+  "version": "1.0.0",
+  "description": "Scoring and interpretation calculator for the WISC-V index structure: composites, percentiles, confidence intervals, and discrepancy analysis.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node tools/serve.js 8080 .",
+    "test": "node --test test/*.test.js",
+    "test:watch": "node --test --watch test/*.test.js"
+  },
+  "keywords": ["wisc-v", "psychometrics", "assessment", "scoring"],
+  "dependencies": {},
+  "devDependencies": {}
+}
