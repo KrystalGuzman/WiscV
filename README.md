@@ -1,8 +1,13 @@
-# WISC-V Score Calculator
+# WISC-V Score Calculator & Practice Test
 
-A dependency-free web app that performs the arithmetic of WISC-V scoring:
-subtest scaled scores in, composite indexes, percentiles, confidence intervals,
-strength/weakness analysis and discrepancy comparisons out.
+Two dependency-free web apps sharing one scoring engine:
+
+- **[Practice test](docs/PRACTICE-TEST.md)** (`exam.html`) — take an original
+  ten-task cognitive test built in the same formats the WISC-V uses, and get a
+  full profile of how you did. About 25–35 minutes.
+- **Score calculator** (`index.html`) — enter subtest scaled scores you already
+  have and get composite indexes, percentiles, confidence intervals,
+  strength/weakness analysis and discrepancy comparisons.
 
 ```
 Verbal Comprehension   Similarities · Vocabulary              → VCI
@@ -19,19 +24,32 @@ NVI   = BD · VP · MR · FW · PS · CD         (nonverbal)
 
 ## Read this first
 
-This is a **scoring aid, not the test**. It contains no WISC-V items and no
-copyrighted norms tables — neither would be lawful to distribute, and test items
-are secure materials besides.
+**Neither app is the WISC-V, and the practice test is not an IQ test.**
 
-Composite conversions are **estimated** from an explicit psychometric model
-rather than looked up from the publisher's tables, so they differ from official
-scores by a point or two in the middle of the distribution and more at the
-extremes. The model, its parameters and its known limits are documented in
-[docs/METHODOLOGY.md](docs/METHODOLOGY.md); if you are licensed to use the
+This repository contains no WISC-V items and no copyrighted norms tables.
+Neither would be lawful to distribute, and test items are secure materials
+besides. Two consequences worth understanding before trusting any number:
+
+**The calculator estimates composite conversions.** They come from an explicit
+psychometric model rather than the publisher's tables, so they differ from
+official scores by a point or two in the middle of the distribution and more at
+the extremes. The model reproduces published composite reliabilities within .012
+and published critical values within about a point — see
+[docs/METHODOLOGY.md](docs/METHODOLOGY.md). If you are licensed to use the
 official norms you can [load them](#using-official-norms) and they take
 precedence.
 
-Administering, scoring and interpreting the WISC-V require appropriate
+**The practice test has no norms at all.** Its scaled scores compare you with an
+*estimated* reference distribution written into
+[`src/exam/reference.js`](src/exam/reference.js), not with real people, and there
+is no age correction. The result describes how you did on those particular
+tasks; it is not an IQ, not a WISC-V score, and has no clinical meaning. The
+shape of the profile — which areas came out higher or lower relative to each
+other — is far more trustworthy than any single number.
+[docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md) sets out exactly where the
+estimates come from and where they break down.
+
+Administering, scoring and interpreting the real WISC-V require appropriate
 professional qualifications. Nothing here substitutes for that judgement, and
 statistical significance is not clinical meaningfulness.
 
@@ -44,8 +62,11 @@ No dependencies, no build step. Node is used only to serve files and run tests.
 
 ```sh
 npm start          # http://localhost:8080
-npm test           # 100 tests, Node's built-in runner
+npm test           # Node's built-in runner
 ```
+
+Then open `/exam.html` to take the practice test, or `/index.html` to enter
+scores you already have.
 
 Any static server works — the app is plain ES modules, which browsers decline to
 load over `file://`, so it does need to be served rather than opened directly.
@@ -111,24 +132,65 @@ The file is validated on load — monotonicity, ranges, age-band coverage — wi
 errors blocking the load and warnings reported. It is read in the browser only,
 and `.gitignore` keeps transcribed norms out of version control.
 
+## The practice test
+
+Ten tasks, two per area, in the formats the WISC-V uses:
+
+| Area | Tasks |
+| --- | --- |
+| Verbal Comprehension | Similarities, Vocabulary |
+| Visual Spatial | Block Design, Visual Puzzles |
+| Fluid Reasoning | Matrix Reasoning, Figure Weights |
+| Working Memory | Digit Span, Picture Span |
+| Processing Speed | Coding, Symbol Search |
+
+Four of them are **procedurally generated** from a seeded RNG, so no two
+sessions are alike and any session replays exactly from its seed
+(`exam.html?seed=12345`). Generated items verify themselves: Figure Weights
+solves its own algebra, Visual Puzzles checks all twenty possible triples and
+regenerates unless exactly one tiles the square, and Matrix Reasoning rejects
+any item whose options are not all distinct.
+
+Discontinue rules stop a task after a run of failures, as real administration
+does. The report shows your raw score and the reference mean beside every
+converted score, so you can see what the conversion is doing rather than take it
+on faith. Full detail in [docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md).
+
 ## Layout
 
 ```
-index.html              page structure
+exam.html               practice test
+results.html            practice test report
+index.html              score calculator
 assets/styles.css       light, dark and print themes
+assets/exam.css         practice test styling
+
 src/core/stats.js       normal distribution, percentiles, quantiles
 src/core/model.js       subtests, composites, bifactor correlation model
 src/core/scoring.js     composites, intervals, comparisons, strengths/weaknesses
 src/core/norms.js       optional user-supplied norms tables
-src/ui/app.js           state, rendering, import/export
+
+src/exam/rng.js         seeded random numbers
+src/exam/generators.js  procedural item generation, with self-verification
+src/exam/verbal-items.js  hand-written verbal item banks
+src/exam/reference.js   the estimated reference distribution (the "not norms" file)
+src/exam/session.js     test construction, discontinue rules, raw scoring
+
+src/ui/app.js           calculator state, rendering, import/export
 src/ui/charts.js        SVG profile charts
-test/                   100 tests over the scoring engine
+src/ui/exam-app.js      test administration and flow
+src/ui/exam-render.js   SVG stimuli
+src/ui/results-app.js   the practice test report
+
+test/                   tests over the scoring engine and the item generators
 tools/serve.js          zero-dependency static server
-docs/METHODOLOGY.md     how every number is derived
+docs/METHODOLOGY.md     how every composite number is derived
+docs/PRACTICE-TEST.md   what the practice test measures, and what it does not
 ```
 
-`src/core/` is pure: no DOM, no I/O, no globals. The browser and the test suite
-call the same functions, so the engine is verifiable independently of the UI.
+`src/core/` and `src/exam/` are pure: no DOM, no I/O, no globals. The browser and
+the test suite call the same functions, so both the scoring engine and the item
+generators are verifiable independently of the UI.
 
 ## Tests
 
@@ -137,7 +199,9 @@ npm test
 ```
 
 Beyond the usual unit coverage, the suite pins the parts that would otherwise
-drift silently:
+drift silently.
+
+On the scoring engine:
 
 - `normalCdf` and `normalQuantile` against known values, and as inverses.
 - The correlation matrix is symmetric, unit-diagonal, and **positive definite**
@@ -151,6 +215,22 @@ drift silently:
   about the mean, and stay inside 40–160.
 - Incomplete protocols withhold composites and drop the affected comparisons.
 - Scoring does not mutate its input.
+
+On the practice test:
+
+- Every generated Figure Weights answer is **re-derived independently** from the
+  premises, across 400 items — the generator's arithmetic is never taken on trust.
+- Every generated Visual Puzzle has **exactly one** valid triple among the twenty
+  possible, verified exhaustively.
+- Matrix Reasoning distractors differ from the answer in exactly one attribute,
+  and all five options are distinct.
+- Symbol Search rows are labelled to match their actual contents.
+- Digit runs contain no immediate repeats and no straight ascending or descending
+  runs, both of which are far easier to hold than an arbitrary sequence.
+- Sessions are reproducible from their seed, and differ between seeds.
+- A perfect performance reaches every task's maximum raw score; a skipped task
+  scores `null` rather than zero, so it is withheld from composites rather than
+  counted as failure.
 
 ## Licence
 

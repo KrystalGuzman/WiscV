@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice Test Results</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/exam.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f5d8a'/%3E%3Cpath d='M5 22 L11 12 L16 18 L21 8 L27 20' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <h1>Your Practice Test Profile</h1>
+      <p class="tagline" id="result-subtitle">How you did across the five areas</p>
+    </div>
+    <div class="masthead-actions no-print">
+      <button type="button" id="btn-print" class="btn btn-quiet">Print</button>
+      <button type="button" id="btn-save" class="btn btn-quiet">Save (JSON)</button>
+      <a class="btn btn-primary" href="exam.html">Take it again</a>
+    </div>
+  </div>
+</header>
+
+<div class="notice notice-important">
+  <strong>This is not an IQ score and not a WISC&#8209;V result.</strong>
+  These numbers come from an original practice test scored against an
+  <em>estimated</em> reference distribution, not from norms collected on real
+  people. They describe how you did on these particular tasks. Treat the shape
+  of the profile — which areas came out higher or lower — as more informative
+  than any single number, and treat the numbers themselves as rough.
+  <a href="docs/METHODOLOGY.md">How this is calculated</a>.
+</div>
+
+<main>
+  <section class="panel" id="panel-empty" hidden>
+    <h2>No results to show</h2>
+    <p class="panel-note">
+      This page displays the profile from a completed practice test. Nothing has
+      been recorded in this browser tab yet.
+    </p>
+    <div class="button-row">
+      <a class="btn btn-primary" href="exam.html">Take the practice test</a>
+      <a class="btn" href="index.html">Open the score calculator</a>
+    </div>
+  </section>
+
+  <div id="results-content" hidden>
+
+    <section class="panel">
+      <h2>Overall</h2>
+      <div id="fsiq-card" class="fsiq-slot"></div>
+      <h3 class="subhead">The five areas</h3>
+      <div id="composite-cards" class="composite-cards"></div>
+      <h3 class="subhead">Ancillary composites</h3>
+      <div id="ancillary-cards" class="composite-cards composite-cards-secondary"></div>
+      <p class="footnote" id="completeness-note"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Profile</h2>
+      <figure class="chart-figure">
+        <figcaption>Area scores (reference mean 100, SD 15)</figcaption>
+        <div id="chart-composites" class="chart"></div>
+      </figure>
+      <figure class="chart-figure">
+        <figcaption>Subtest scores (reference mean 10, SD 3)</figcaption>
+        <div id="chart-subtests" class="chart"></div>
+      </figure>
+    </section>
+
+    <section class="panel">
+      <h2>How you did on each task</h2>
+      <table class="data-table" id="subtest-table">
+        <caption>Raw performance and its converted score</caption>
+        <thead>
+          <tr>
+            <th scope="col">Area</th>
+            <th scope="col">Task</th>
+            <th scope="col" class="num">Your raw score</th>
+            <th scope="col" class="num">Out of</th>
+            <th scope="col" class="num">Reference average</th>
+            <th scope="col" class="num">Scaled</th>
+            <th scope="col">Compared with reference</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="footnote" id="ceiling-note"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Your strengths and weaknesses</h2>
+      <p class="panel-note" id="sw-note"></p>
+      <table class="data-table" id="sw-table">
+        <caption>Each task compared with your own average</caption>
+        <thead>
+          <tr>
+            <th scope="col">Task</th>
+            <th scope="col" class="num">Scaled</th>
+            <th scope="col" class="num">Difference from your mean</th>
+            <th scope="col" class="num">Critical value</th>
+            <th scope="col">Result</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="footnote">
+        This compares each task against <em>your own</em> average rather than against
+        other people, so it is the part of this report least affected by the reference
+        distribution being an estimate.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Differences between areas</h2>
+      <table class="data-table" id="comparison-table">
+        <caption>Area pairs</caption>
+        <thead>
+          <tr>
+            <th scope="col">Comparison</th>
+            <th scope="col" class="num">Score 1</th>
+            <th scope="col" class="num">Score 2</th>
+            <th scope="col" class="num">Difference</th>
+            <th scope="col" class="num">Critical value</th>
+            <th scope="col">Notable</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel no-print">
+      <h2>What these numbers mean — and don't</h2>
+      <div class="caveats" id="caveats"></div>
+      <div class="button-row">
+        <a class="btn" href="index.html" id="btn-calculator">Open these scores in the calculator</a>
+        <a class="btn" href="exam.html">Take the test again</a>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="colophon">
+  <p>
+    An independent practice tool. WISC&#8209;V is a registered trademark of NCS
+    Pearson,&nbsp;Inc.; this is not affiliated with, endorsed by, or derived from the
+    publisher's materials, and contains none of its test items or normative data.
+  </p>
+</footer>
+
+<script type="module" src="src/ui/results-app.js"></script>
+</body>
+</html>

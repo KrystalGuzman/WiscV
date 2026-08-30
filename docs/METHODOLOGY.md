@@ -1,6 +1,18 @@
 # Methodology
 
-Every number this app reports is derived from constants in
+This document covers the **composite scoring engine**: how scaled scores become
+index scores, percentiles, confidence intervals and discrepancy comparisons. It
+applies to both apps in this repository.
+
+If you are here about the **practice test** — where its items come from, and why
+its scaled scores are not norm-referenced — see
+[PRACTICE-TEST.md](PRACTICE-TEST.md) first. The practice test feeds its scaled
+scores into the engine described here, which means this document's arithmetic is
+applied to inputs that are themselves estimates. That is worth holding onto:
+sound arithmetic on uncertain inputs yields uncertain answers that can look more
+precise than they are.
+
+Every number described below is derived from constants in
 [`src/core/model.js`](../src/core/model.js). Nothing is looked up from a
 copyrighted table, and nothing is hardcoded per-composite. This document
 explains the derivation so it can be checked rather than trusted.
@@ -204,6 +216,10 @@ The file is read in the browser only. It is never uploaded, and `.gitignore` is
 configured to keep transcribed norms out of version control.
 
 ## Sources of imprecision
+
+(These are the engine's own limits. The practice test adds a much larger source
+of imprecision on top — its reference distribution is an estimate rather than a
+norm. See [PRACTICE-TEST.md](PRACTICE-TEST.md).)
 
 1. **Linear equating.** The official conversions are not perfectly linear at the
    distribution's extremes.

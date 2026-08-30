@@ -71,6 +71,13 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * The `hidden` attribute is expressed as `display: none` by the UA stylesheet,
+ * which any author `display` rule silently beats -- and .btn sets
+ * `display: inline-flex`. Without this, every hidden button renders.
+ */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cognitive Practice Test</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/exam.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f5d8a'/%3E%3Cpath d='M5 22 L11 12 L16 18 L21 8 L27 20' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body class="exam-body">
+
+<header class="exam-bar" id="exam-bar" hidden>
+  <div class="exam-bar-inner">
+    <div class="exam-bar-left">
+      <span class="exam-subtest" id="bar-subtest"></span>
+      <span class="exam-progress-text" id="bar-progress"></span>
+    </div>
+    <div class="exam-bar-right">
+      <span class="exam-timer" id="bar-timer" hidden></span>
+      <button type="button" id="btn-skip" class="btn btn-quiet">Skip subtest</button>
+      <button type="button" id="btn-quit" class="btn btn-quiet">End test</button>
+    </div>
+  </div>
+  <div class="exam-progress"><div class="exam-progress-fill" id="bar-fill"></div></div>
+</header>
+
+<main class="exam-main" id="exam-root"></main>
+
+<template id="tpl-welcome">
+  <section class="exam-card exam-welcome">
+    <h1>Cognitive Practice Test</h1>
+    <p class="lede">
+      Ten short tasks across five areas of thinking — verbal reasoning, visual
+      reasoning, problem solving, working memory and processing speed. It takes
+      about 25&ndash;35 minutes. At the end you get a full profile of how you did.
+    </p>
+
+    <div class="notice notice-important exam-notice">
+      <strong>This is a practice test, not an IQ test.</strong>
+      It is an original set of tasks built in the same <em>formats</em> the WISC&#8209;V
+      uses. It contains no WISC&#8209;V items, and it is not normed on any population:
+      scores compare you with an estimated reference distribution documented in the
+      code, not with real people. The result is a profile of your performance on
+      <em>these</em> tasks. It is not an IQ, not a WISC&#8209;V score, and has no
+      clinical meaning.
+    </div>
+
+    <h2>What you will do</h2>
+    <ol class="task-list">
+      <li><strong>Similarities</strong> &amp; <strong>Vocabulary</strong> — how concepts relate, and what words mean</li>
+      <li><strong>Block Design</strong> &amp; <strong>Visual Puzzles</strong> — building and assembling patterns</li>
+      <li><strong>Matrix Reasoning</strong> &amp; <strong>Figure Weights</strong> — completing patterns and balancing scales</li>
+      <li><strong>Digit Span</strong> &amp; <strong>Picture Span</strong> — holding things in mind</li>
+      <li><strong>Coding</strong> &amp; <strong>Symbol Search</strong> — working quickly and accurately</li>
+    </ol>
+
+    <div class="exam-tips">
+      <p><strong>Before you start:</strong> find somewhere quiet, and don't use notes, a
+      calculator or anything to write with — several tasks measure what you can hold in
+      your head. Some tasks are timed. You can skip any subtest, but skipped subtests
+      leave gaps in the profile.</p>
+    </div>
+
+    <div class="exam-actions">
+      <button type="button" id="btn-start" class="btn btn-primary btn-large">Start the test</button>
+      <a class="btn" href="index.html">Open the score calculator instead</a>
+    </div>
+    <p class="footnote" id="seed-note"></p>
+  </section>
+</template>
+
+<template id="tpl-intro">
+  <section class="exam-card exam-intro">
+    <p class="exam-eyebrow" id="intro-eyebrow"></p>
+    <h1 id="intro-title"></h1>
+    <p class="lede" id="intro-lede"></p>
+    <div class="exam-demo" id="intro-demo"></div>
+    <ul class="exam-rules" id="intro-rules"></ul>
+    <div class="exam-actions">
+      <button type="button" id="btn-begin" class="btn btn-primary btn-large">Begin</button>
+      <button type="button" id="btn-skip-intro" class="btn btn-quiet">Skip this subtest</button>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-item">
+  <section class="exam-card exam-item">
+    <p class="exam-eyebrow" id="item-eyebrow"></p>
+    <h2 class="item-prompt" id="item-prompt"></h2>
+    <div class="item-stimulus" id="item-stimulus"></div>
+    <div class="item-options" id="item-options"></div>
+    <div class="item-footer">
+      <span class="item-hint" id="item-hint"></span>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-done">
+  <section class="exam-card exam-done">
+    <h1>Test complete</h1>
+    <p class="lede">Scoring your responses…</p>
+  </section>
+</template>
+
+<script type="module" src="src/ui/exam-app.js"></script>
+</body>
+</html>

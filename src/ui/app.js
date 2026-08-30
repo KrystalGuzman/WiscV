@@ -11,7 +11,7 @@ import {
   getComposite, subtestsInDomain,
 } from '../core/model.js';
 import { scoreProtocol, parseScaledScore, applyOfficialScore } from '../core/scoring.js';
-import { formatPercentile, ordinal } from '../core/stats.js';
+import { formatPercentile, formatPercentileLabel } from '../core/stats.js';
 import {
   validateNorms, rawToScaled, sumToComposite, ageInMonths, formatAge, findAgeBand,
 } from '../core/norms.js';
@@ -169,6 +169,35 @@ function bindControls() {
   const today = new Date().toISOString().slice(0, 10);
   $('f-test-date').value = today;
   state.examinee.testDate = today;
+
+  applyScoresFromUrl();
+}
+
+/**
+ * Accept scaled scores as query parameters (?si=12&vo=14...), which is how the
+ * practice test hands a completed profile over to the calculator.
+ */
+function applyScoresFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  let applied = 0;
+
+  for (const subtest of SUBTESTS) {
+    if (!params.has(subtest.id)) continue;
+    try {
+      const value = parseScaledScore(params.get(subtest.id));
+      if (value == null) continue;
+      state.scaled[subtest.id] = value;
+      $(`in-${subtest.id}`).value = String(value);
+      applied += 1;
+    } catch {
+      // A malformed parameter is ignored rather than blocking the whole load.
+    }
+  }
+
+  if (applied > 0 && !state.examinee.id) {
+    state.examinee.id = params.get('id') ?? 'practice-test';
+    $('f-examinee').value = state.examinee.id;
+  }
 }
 
 function currentAgeInMonths() {
@@ -258,8 +287,7 @@ function fillCards(container, composites, results) {
 
     const ci = composite.intervals[0.95];
     card.append(textNode('div', 'card-score', String(composite.score)));
-    card.append(textNode('div', 'card-meta',
-      `${ordinal(Math.round(composite.percentile)) ?? formatPercentile(composite.percentile)} percentile`));
+    card.append(textNode('div', 'card-meta', formatPercentileLabel(composite.percentile)));
     card.append(textNode('div', 'card-meta', `95% CI ${ci.lower}–${ci.upper}`));
     card.append(textNode('div', 'card-descriptor', composite.descriptor));
     container.append(card);

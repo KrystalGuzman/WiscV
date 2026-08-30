@@ -90,6 +90,19 @@ export function formatPercentile(pct) {
   return String(Math.round(pct));
 }
 
+/**
+ * A percentile as a report phrase: "77th percentile".
+ *
+ * The tails need care. Percentile ranks are clamped to [0.1, 99.9], so naively
+ * rounding and adding a suffix yields "0th percentile" and "100th percentile",
+ * neither of which is a claim any score report should make.
+ */
+export function formatPercentileLabel(pct) {
+  if (pct < 1) return 'below the 1st percentile';
+  if (pct > 99) return 'above the 99th percentile';
+  return `${ordinal(Math.round(pct))} percentile`;
+}
+
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }

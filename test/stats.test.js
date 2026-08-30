@@ -1,7 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalCdf, erfc, normalQuantile, percentileRank, formatPercentile, ordinal, mean, sum,
+  normalCdf, erfc, normalQuantile, percentileRank, formatPercentile,
+  formatPercentileLabel, ordinal, mean, sum,
 } from '../src/core/stats.js';
 
 /** Assert two floats agree to `tol`. */
@@ -107,6 +108,25 @@ describe('formatting helpers', () => {
     assert.equal(ordinal(21), '21st');
     assert.equal(ordinal(63), '63rd');
     assert.equal(ordinal(0.5), null);
+  });
+
+  test('formatPercentileLabel never claims a 0th or 100th percentile', () => {
+    // Percentile ranks clamp to [0.1, 99.9]; rounding those naively produces
+    // "0th percentile" and "100th percentile", which no report should assert.
+    assert.equal(formatPercentileLabel(percentileRank(40, 100, 15)), 'below the 1st percentile');
+    assert.equal(formatPercentileLabel(percentileRank(160, 100, 15)), 'above the 99th percentile');
+    assert.equal(formatPercentileLabel(0.1), 'below the 1st percentile');
+    assert.equal(formatPercentileLabel(99.9), 'above the 99th percentile');
+  });
+
+  test('formatPercentileLabel reads naturally through the middle', () => {
+    assert.equal(formatPercentileLabel(50), '50th percentile');
+    assert.equal(formatPercentileLabel(77.4), '77th percentile');
+    assert.equal(formatPercentileLabel(1), '1st percentile');
+    assert.equal(formatPercentileLabel(2.2), '2nd percentile');
+    assert.equal(formatPercentileLabel(3), '3rd percentile');
+    assert.equal(formatPercentileLabel(21), '21st percentile');
+    assert.equal(formatPercentileLabel(99), '99th percentile');
   });
 
   test('sum and mean', () => {
