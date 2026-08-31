@@ -6,8 +6,9 @@ Two dependency-free web apps sharing one scoring engine:
   ten-task cognitive test built in the same formats the WISC-V uses, and get a
   full profile of how you did. About 25–35 minutes.
 - **[Practice areas](docs/PRACTICE-TEST.md#the-practice-areas)** (`practice.html`) —
-  drill any one task on its own, untimed and unscored, with an explanation after
-  every item. The test stays silent about answers; this is where the feedback lives.
+  drill any one task on its own, untimed and unscored, with an **Explain this
+  problem** walkthrough before you answer and a full explanation after. The test
+  stays silent about answers; this is where the teaching lives.
 - **Score calculator** (`index.html`) — enter subtest scaled scores you already
   have and get composite indexes, percentiles, confidence intervals,
   strength/weakness analysis and discrepancy comparisons.
@@ -171,6 +172,15 @@ Weights does the arithmetic out loud, and the verbal tasks name what separates
 the full-credit answer from the partial one. A result page links each flagged
 weakness straight into its drill.
 
+**Explain this problem** is the other half, available before you answer. It
+teaches the method a step at a time — rule out what is constant, then find what
+governs each varying feature, then apply it — rather than handing over the
+answer, so you can stop as soon as you see it. Walkthroughs that necessarily end
+at the answer keep that item out of your accuracy figure; strategy-only ones
+(how to chunk a digit span, how to group the Coding key) give nothing away and
+cost nothing, which the code tracks with a `revealsAnswer` flag rather than
+leaving to the UI to guess.
+
 Two honest caveats, both stated on the page: practising a task makes you better
 at *that task*, and evidence for transfer to general ability is weak at best;
 and practising will inflate a later score on the practice test, since the
@@ -198,6 +208,7 @@ src/exam/verbal-items.js  hand-written verbal item banks
 src/exam/reference.js   the estimated reference distribution (the "not norms" file)
 src/exam/session.js     test construction, discontinue rules, raw scoring
 src/exam/explain.js     plain-language explanations of why an answer is what it is
+src/exam/walkthrough.js how to work through a problem, revealed a step at a time
 
 src/ui/app.js           calculator state, rendering, import/export
 src/ui/charts.js        SVG profile charts
@@ -255,9 +266,12 @@ On the practice test:
 - A perfect performance reaches every task's maximum raw score; a skipped task
   scores `null` rather than zero, so it is withheld from composites rather than
   counted as failure.
-- Every explanation is swept for prose faults across hundreds of generated items
-  — runaway numbers, "a" before a vowel, subject-verb disagreement, unrendered
-  values — because an explanation that reads as broken is worse than none.
+- Every explanation and walkthrough step is swept for prose faults across
+  hundreds of generated items — runaway numbers, "a" before a vowel,
+  subject-verb disagreement, unrendered values — because guidance that reads as
+  broken is worse than none.
+- No walkthrough gives the answer away in its first step, and strategy-only
+  walkthroughs never name the stimulus.
 - `asFraction` refuses a float rather than emitting nonsense: a ratio recovered
   from a division has already lost the exact fraction.
 

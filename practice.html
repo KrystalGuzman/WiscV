@@ -56,6 +56,21 @@
     <h2 class="item-prompt" id="drill-prompt"></h2>
     <div class="item-stimulus" id="drill-stimulus"></div>
     <div class="item-options" id="drill-options"></div>
+
+    <div class="drill-help">
+      <button type="button" id="btn-explain" class="btn">Explain this problem</button>
+      <span class="help-note" id="help-note"></span>
+    </div>
+
+    <div id="drill-walkthrough" class="walkthrough" hidden>
+      <p class="walkthrough-title">Working through it</p>
+      <ol class="walkthrough-steps" id="walkthrough-steps"></ol>
+      <div class="walkthrough-actions">
+        <button type="button" id="btn-next-step" class="btn btn-primary">Next step</button>
+        <button type="button" id="btn-hide-steps" class="btn btn-quiet">I've got it</button>
+      </div>
+    </div>
+
     <div id="drill-feedback" class="feedback" hidden>
       <p class="feedback-verdict" id="feedback-verdict"></p>
       <p class="feedback-why" id="feedback-why"></p>

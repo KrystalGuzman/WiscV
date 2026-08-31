@@ -598,3 +598,66 @@
 .option.is-locked.is-mistake:hover { border-color: var(--weakness); }
 
 .streak-note { font-size: .78rem; color: var(--text-muted); }
+
+/* --- Walkthrough ---------------------------------------------------------- */
+
+.drill-help {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.help-note { font-size: .78rem; color: var(--text-faint); }
+
+.walkthrough {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.walkthrough-title {
+  margin: 0 0 10px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.walkthrough-steps {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 10px;
+}
+
+.walkthrough-steps li {
+  font-size: .87rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* The newest step is what the reader should be looking at. */
+.walkthrough-steps li.is-latest { font-weight: 500; }
+.walkthrough-steps li:not(.is-latest) { color: var(--text-muted); }
+
+.walkthrough-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  align-items: center;
+}
+
+.walkthrough-done {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin: 14px 0 0;
+}

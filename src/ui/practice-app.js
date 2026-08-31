@@ -25,6 +25,11 @@ import {
   explainBlockDesign, explainDigitSpan, explainPictureSpan, explainCoding,
   explainSymbolSearch, letterFor,
 } from '../exam/explain.js';
+import {
+  walkMatrix, walkFigureWeights, walkSimilarities, walkVocabulary,
+  walkVisualPuzzle, walkBlockDesign, walkDigitSpan, walkPictureSpan,
+  walkCoding, walkSymbolSearch,
+} from '../exam/walkthrough.js';
 import { expectedDigitResponse } from '../exam/session.js';
 import {
   renderMatrix, renderMatrixCell, renderScale, renderShapeGroup,
@@ -99,6 +104,11 @@ const state = {
   streak: 0,
   bestStreak: 0,
   item: null,
+  // The walkthrough for the item on screen, and how much of it is revealed.
+  walkthrough: null,
+  stepsShown: 0,
+  usedHelp: false,
+  helped: 0,
   // Verbal banks are finite, so they are walked in a shuffled order and
   // reshuffled once exhausted rather than repeating at random.
   queue: [],
@@ -205,6 +215,7 @@ function startTask(taskId, level) {
   state.bestStreak = 0;
   state.queue = [];
   state.span = 3;
+  state.helped = 0;
   state.codingKey = generateCodingKey(state.rng);
 
   bar.hidden = false;
@@ -234,12 +245,22 @@ function subtestName(taskId) {
   return taskId;
 }
 
+/**
+ * Accuracy counts only items answered without the answer already in hand.
+ * A walkthrough that ends on the key makes the item trivial, so scoring it
+ * would quietly turn the accuracy readout into a measure of button-pressing.
+ * Strategy-only walkthroughs give nothing away and are not excluded.
+ */
 function updateStats() {
-  const accuracy = state.attempted === 0 ? 0 : Math.round((100 * state.correct) / state.attempted);
-  $('bar-stats').textContent = state.attempted === 0
-    ? 'No items yet'
-    : `${state.correct} of ${state.attempted} correct · ${accuracy}%` +
-      (state.bestStreak > 1 ? ` · best run ${state.bestStreak}` : '');
+  const scored = state.attempted - state.helped;
+  const accuracy = scored === 0 ? 0 : Math.round((100 * state.correct) / scored);
+
+  const parts = [];
+  if (scored > 0) parts.push(`${state.correct} of ${scored} correct · ${accuracy}%`);
+  if (state.helped > 0) parts.push(`${state.helped} walked through`);
+  if (state.bestStreak > 1) parts.push(`best run ${state.bestStreak}`);
+
+  $('bar-stats').textContent = state.attempted === 0 ? 'No items yet' : parts.join(' · ');
   $('bar-accuracy').style.width = `${accuracy}%`;
 }
 
@@ -253,6 +274,10 @@ function render(templateId) {
 
 function nextItem() {
   render('tpl-drill');
+  state.walkthrough = null;
+  state.stepsShown = 0;
+  state.usedHelp = false;
+  state.blockWorking = null;
   updateStats();
 
   $('drill-eyebrow').textContent =
@@ -260,6 +285,114 @@ function nextItem() {
     (state.attempted > 0 ? ` · item ${state.attempted + 1}` : '');
 
   PRESENTERS[state.taskId]();
+  wireWalkthrough();
+}
+
+/**
+ * Prepare the "Explain this problem" button for whatever is on screen.
+ *
+ * Steps are revealed one at a time rather than all at once: a walkthrough that
+ * hands over the answer in its first sentence is just the explanation with
+ * extra clicks. Stopping early is the point.
+ */
+function wireWalkthrough() {
+  // Built once here to decide availability and wording. It is built *again* on
+  // click, because Block Design's walkthrough points at the first tile that
+  // still differs — which depends on what has been clicked since.
+  const preview = buildWalkthrough();
+
+  const button = $('btn-explain');
+  const note = $('help-note');
+  if (!preview || preview.steps.length === 0) {
+    button.hidden = true;
+    return;
+  }
+
+  button.hidden = false;
+  note.textContent = preview.revealsAnswer
+    ? 'Walks up to the answer, a step at a time — items you use it on are kept out of your accuracy.'
+    : 'How to approach this kind of task. It gives nothing away, so your accuracy still counts.';
+
+  button.onclick = () => {
+    showWalkthrough();
+    button.hidden = true;
+    note.textContent = '';
+  };
+
+  $('btn-next-step').onclick = revealStep;
+  $('btn-hide-steps').onclick = () => {
+    $('drill-walkthrough').hidden = true;
+    button.hidden = false;
+    button.textContent = 'Show the walkthrough again';
+    note.textContent = '';
+  };
+}
+
+/**
+ * Open the panel, showing as much as was already revealed — reopening should
+ * redisplay what you had, not advance past it.
+ *
+ * The steps are rebuilt and re-rendered rather than left in place, because
+ * Block Design's walkthrough names the first tile still wrong, and that moves
+ * as you click.
+ */
+function showWalkthrough() {
+  state.walkthrough = buildWalkthrough();
+  const wanted = Math.min(Math.max(1, state.stepsShown), state.walkthrough.steps.length);
+
+  state.stepsShown = 0;
+  $('walkthrough-steps').replaceChildren();
+  $('drill-walkthrough').querySelector('.walkthrough-done')?.remove();
+  $('btn-next-step').hidden = false;
+  $('drill-walkthrough').hidden = false;
+
+  for (let i = 0; i < wanted; i += 1) revealStep();
+}
+
+function revealStep() {
+  const { steps, revealsAnswer } = state.walkthrough;
+  if (state.stepsShown >= steps.length) return;
+
+  const list = $('walkthrough-steps');
+  for (const previous of list.children) previous.classList.remove('is-latest');
+
+  const item = document.createElement('li');
+  item.className = 'is-latest';
+  item.textContent = steps[state.stepsShown];
+  list.append(item);
+  state.stepsShown += 1;
+
+  // Only the step that actually names the answer costs the item its scoring.
+  if (revealsAnswer && state.stepsShown === steps.length) state.usedHelp = true;
+
+  if (state.stepsShown >= steps.length) {
+    $('btn-next-step').hidden = true;
+    $('btn-hide-steps').textContent = 'Hide these steps';
+    const done = document.createElement('p');
+    done.className = 'walkthrough-done';
+    done.textContent = revealsAnswer
+      ? 'That is the whole method. Pick your answer to confirm it.'
+      : 'That is the approach — now give it a go.';
+    $('drill-walkthrough').append(done);
+  }
+}
+
+/** The walkthrough for the current task and item. */
+function buildWalkthrough() {
+  const item = state.item;
+  switch (state.taskId) {
+    case 'mr': return walkMatrix(item);
+    case 'fw': return walkFigureWeights(item);
+    case 'si': return walkSimilarities(item);
+    case 'vo': return walkVocabulary(item);
+    case 'vp': return walkVisualPuzzle(item);
+    case 'bd': return walkBlockDesign(item, state.blockWorking);
+    case 'ds': return walkDigitSpan(state.level);
+    case 'pc': return walkPictureSpan();
+    case 'cd': return walkCoding();
+    case 'ss': return walkSymbolSearch();
+    default: return null;
+  }
 }
 
 /**
@@ -270,7 +403,13 @@ function nextItem() {
  */
 function reveal(outcome, why) {
   state.attempted += 1;
-  if (outcome === 'correct') {
+
+  if (state.usedHelp) {
+    // Answered with the key already on screen: not a result either way, so it
+    // breaks the streak rather than extending it on a technicality.
+    state.helped += 1;
+    state.streak = 0;
+  } else if (outcome === 'correct') {
     state.correct += 1;
     state.streak += 1;
     state.bestStreak = Math.max(state.bestStreak, state.streak);
@@ -279,15 +418,21 @@ function reveal(outcome, why) {
   }
   updateStats();
 
+  // The full explanation now covers everything the walkthrough would.
+  $('btn-explain').hidden = true;
+  $('help-note').textContent = '';
+
   const box = $('drill-feedback');
   box.hidden = false;
   box.classList.add(
     outcome === 'correct' ? 'is-correct' : outcome === 'partial' ? 'is-partial' : 'is-wrong');
 
   $('feedback-verdict').textContent =
-    outcome === 'correct' ? (state.streak > 2 ? `Correct — ${state.streak} in a row.` : 'Correct.')
-    : outcome === 'partial' ? 'Partly right.'
-    : 'Not quite.';
+    outcome === 'correct'
+      ? (state.usedHelp ? 'Correct, with the walkthrough.'
+        : state.streak > 2 ? `Correct — ${state.streak} in a row.` : 'Correct.')
+      : outcome === 'partial' ? 'Partly right.'
+      : 'Not quite.';
   $('feedback-why').textContent = why;
 
   const next = $('btn-next-item');
@@ -472,6 +617,7 @@ function presentBlockDesign() {
   state.item = item;
 
   const working = item.grid.map((row) => row.map(() => 'full-b'));
+  state.blockWorking = working;   // the walkthrough reads this to find a mismatch
   const startedAt = Date.now();
 
   $('drill-prompt').textContent = 'Rebuild the pattern. Click a tile to change its face.';

@@ -157,6 +157,40 @@ item:
 A result page links each flagged weakness straight into its drill, so
 "Figure Weights: Weakness" has somewhere to go.
 
+### Explain this problem
+
+Every practice item also carries an **Explain this problem** button, available
+*before* you answer. Where the post-answer explanation tells you what the answer
+was, this teaches the method — and it reveals one step at a time rather than all
+at once, so you can stop the moment you see it and finish the item yourself.
+
+A Matrix Reasoning walkthrough, for instance, runs:
+
+1. Rule out what is constant in all eight cells — it tells you nothing.
+2. Take each varying feature in turn, and how to *look* for its rule ("read
+   along one row — it never changes; now compare it with the next row").
+3. Apply the rules to the empty cell.
+4. Match that description against the options.
+
+Only the last step names the answer.
+
+Two of these behave differently, and the difference is marked in the code:
+
+- **Solution walkthroughs** (Matrix Reasoning, Figure Weights, Similarities,
+  Vocabulary, Visual Puzzles) necessarily end at the answer — a matrix rule, once
+  stated, determines the missing cell. Items where you read to the end are kept
+  out of your accuracy figure, since answering with the key already on screen is
+  not a result.
+- **Strategy walkthroughs** (Block Design, Digit Span, Picture Span, Coding,
+  Symbol Search) give nothing away — no walkthrough can tell you which digits you
+  just saw — so they carry a `revealsAnswer: false` flag and cost you nothing.
+  These are genuine technique: chunk digits into pairs, sort as you go on
+  sequencing, name pictures to hold them as words, group the Coding key by
+  feature rather than reading it left to right.
+
+Block Design's walkthrough reads the grid as it stands when you press the button
+and points at the first tile still wrong, so it stays useful mid-build.
+
 ### What practice will and will not do
 
 Practising a task reliably makes you better at *that task*. Whether that
