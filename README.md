@@ -5,6 +5,9 @@ Two dependency-free web apps sharing one scoring engine:
 - **[Practice test](docs/PRACTICE-TEST.md)** (`exam.html`) — take an original
   ten-task cognitive test built in the same formats the WISC-V uses, and get a
   full profile of how you did. About 25–35 minutes.
+- **[Practice areas](docs/PRACTICE-TEST.md#the-practice-areas)** (`practice.html`) —
+  drill any one task on its own, untimed and unscored, with an explanation after
+  every item. The test stays silent about answers; this is where the feedback lives.
 - **Score calculator** (`index.html`) — enter subtest scaled scores you already
   have and get composite indexes, percentiles, confidence intervals,
   strength/weakness analysis and discrepancy comparisons.
@@ -156,11 +159,30 @@ does. The report shows your raw score and the reference mean beside every
 converted score, so you can see what the conversion is doing rather than take it
 on faith. Full detail in [docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md).
 
+## Practice areas
+
+`practice.html` drills any single task, untimed and unscored, and explains every
+item afterwards — the test deliberately gives no feedback, because telling you
+the answer partway through would teach you the pattern and invalidate the rest.
+
+Explanations come from the item's own structure rather than being guessed after
+the fact: Matrix Reasoning states the rules that generated the matrix, Figure
+Weights does the arithmetic out loud, and the verbal tasks name what separates
+the full-credit answer from the partial one. A result page links each flagged
+weakness straight into its drill.
+
+Two honest caveats, both stated on the page: practising a task makes you better
+at *that task*, and evidence for transfer to general ability is weak at best;
+and practising will inflate a later score on the practice test, since the
+formats are identical and the verbal banks are finite. Take the test before you
+drill, not after.
+
 ## Layout
 
 ```
 exam.html               practice test
 results.html            practice test report
+practice.html           practice areas (single-task drills with feedback)
 index.html              score calculator
 assets/styles.css       light, dark and print themes
 assets/exam.css         practice test styling
@@ -175,12 +197,14 @@ src/exam/generators.js  procedural item generation, with self-verification
 src/exam/verbal-items.js  hand-written verbal item banks
 src/exam/reference.js   the estimated reference distribution (the "not norms" file)
 src/exam/session.js     test construction, discontinue rules, raw scoring
+src/exam/explain.js     plain-language explanations of why an answer is what it is
 
 src/ui/app.js           calculator state, rendering, import/export
 src/ui/charts.js        SVG profile charts
 src/ui/exam-app.js      test administration and flow
 src/ui/exam-render.js   SVG stimuli
 src/ui/results-app.js   the practice test report
+src/ui/practice-app.js  the practice areas
 
 test/                   tests over the scoring engine and the item generators
 tools/serve.js          zero-dependency static server
@@ -231,6 +255,11 @@ On the practice test:
 - A perfect performance reaches every task's maximum raw score; a skipped task
   scores `null` rather than zero, so it is withheld from composites rather than
   counted as failure.
+- Every explanation is swept for prose faults across hundreds of generated items
+  — runaway numbers, "a" before a vowel, subject-verb disagreement, unrendered
+  values — because an explanation that reads as broken is worse than none.
+- `asFraction` refuses a float rather than emitting nonsense: a ratio recovered
+  from a division has already lost the exact fraction.
 
 ## Licence
 

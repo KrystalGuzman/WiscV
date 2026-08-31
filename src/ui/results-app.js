@@ -255,7 +255,27 @@ function renderStrengthsWeaknesses(results) {
     tag.textContent = entry.verdict === 'Within normal limits' ? 'Typical for you' : entry.verdict;
     cell.append(tag);
     row.append(cell);
+
+    // A weakness with nowhere to go is just a label; link it to its drill.
+    const practice = document.createElement('td');
+    practice.className = 'no-print';
+    const link = document.createElement('a');
+    link.href = `practice.html?task=${entry.subtestId}`;
+    link.textContent = 'Practise';
+    practice.append(link);
+    row.append(practice);
+
     body.append(row);
+  }
+
+  // Carry the flagged weaknesses into the practice menu so it can mark them.
+  const weak = entries.filter((e) => e.verdict === 'Weakness').map((e) => e.subtestId);
+  const button = $('btn-practice-weak');
+  if (button) {
+    button.href = weak.length > 0 ? `practice.html?focus=${weak.join(',')}` : 'practice.html';
+    button.textContent = weak.length > 0
+      ? `Practise your ${weak.length === 1 ? 'weakest task' : `${weak.length} weakest tasks`}`
+      : 'Practise any task';
   }
 }
 

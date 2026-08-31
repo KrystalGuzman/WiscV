@@ -159,7 +159,10 @@ function tryMatrixItem(rng, varyingAttributes) {
     matrix,
     options,
     answerIndex: options.findIndex((o) => visualKey(o) === visualKey(answer)),
-    rules: plan.map(({ name, rule }) => `${name}:${rule}`),
+    // Structured rather than a display string: the practice area turns these
+    // into an explanation, so it needs the parts, not a label.
+    rules: plan.map(({ name, rule }) => ({ attribute: name, rule })),
+    fixed,
   };
 }
 

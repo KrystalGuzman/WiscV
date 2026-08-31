@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice Areas</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/exam.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f5d8a'/%3E%3Cpath d='M5 22 L11 12 L16 18 L21 8 L27 20' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body class="exam-body">
+
+<header class="exam-bar" id="practice-bar" hidden>
+  <div class="exam-bar-inner">
+    <div class="exam-bar-left">
+      <span class="exam-subtest" id="bar-task"></span>
+      <span class="exam-progress-text" id="bar-stats"></span>
+    </div>
+    <div class="exam-bar-right">
+      <label class="inline-select">Level
+        <select id="f-difficulty"></select>
+      </label>
+      <button type="button" id="btn-back" class="btn btn-quiet">All areas</button>
+    </div>
+  </div>
+  <div class="exam-progress"><div class="exam-progress-fill" id="bar-accuracy"></div></div>
+</header>
+
+<main class="exam-main" id="practice-root"></main>
+
+<template id="tpl-menu">
+  <section class="exam-card">
+    <h1>Practice Areas</h1>
+    <p class="lede">
+      Work on any of the ten tasks on its own, for as long as you like. Unlike the
+      test, practice tells you straight away whether you were right &mdash; and why.
+      Nothing here is scored or recorded.
+    </p>
+    <div class="notice exam-notice">
+      Practising a task will make you better at <em>that task</em>. Whether that
+      carries over to anything else is a genuinely open question in the research,
+      and the honest answer is that transfer to general ability is weak at best.
+      Treat this as somewhere to understand the puzzles, not to raise a score.
+    </div>
+    <div id="area-list" class="area-list"></div>
+    <div class="exam-actions">
+      <a class="btn" href="exam.html">Take the full test</a>
+      <a class="btn" href="index.html">Score calculator</a>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-drill">
+  <section class="exam-card exam-item">
+    <p class="exam-eyebrow" id="drill-eyebrow"></p>
+    <h2 class="item-prompt" id="drill-prompt"></h2>
+    <div class="item-stimulus" id="drill-stimulus"></div>
+    <div class="item-options" id="drill-options"></div>
+    <div id="drill-feedback" class="feedback" hidden>
+      <p class="feedback-verdict" id="feedback-verdict"></p>
+      <p class="feedback-why" id="feedback-why"></p>
+      <div class="feedback-actions">
+        <button type="button" id="btn-next-item" class="btn btn-primary">Next item</button>
+      </div>
+    </div>
+    <div class="item-footer">
+      <span class="item-hint" id="drill-hint"></span>
+    </div>
+  </section>
+</template>
+
+<script type="module" src="src/ui/practice-app.js"></script>
+</body>
+</html>

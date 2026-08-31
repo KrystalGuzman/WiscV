@@ -507,3 +507,94 @@
 
 .caveat-heading { display: block; font-size: .88rem; margin-bottom: 4px; }
 .caveat-body { margin: 0; font-size: .84rem; color: var(--text-muted); line-height: 1.6; }
+
+/* --- Practice areas ------------------------------------------------------- */
+
+.area-list { display: grid; gap: 16px; margin: 22px 0; }
+
+.area-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  padding: 15px 17px;
+}
+
+.area-block h2 {
+  margin: 0 0 3px;
+  font-size: .95rem;
+}
+
+.area-block .area-blurb {
+  margin: 0 0 12px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.task-buttons { display: flex; gap: 9px; flex-wrap: wrap; }
+
+.task-button {
+  flex: 1 1 190px;
+  text-align: left;
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.task-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.task-button .task-name { font-weight: 600; font-size: .88rem; }
+.task-button .task-what { font-size: .76rem; color: var(--text-muted); line-height: 1.45; }
+
+.task-button.is-suggested { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.task-button .task-flag {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--accent);
+  margin-top: 3px;
+}
+
+.inline-select {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: .76rem;
+  white-space: nowrap;
+}
+.inline-select select { width: auto; padding: 4px 7px; font-size: .8rem; }
+
+/* --- Feedback ------------------------------------------------------------- */
+
+.feedback {
+  margin-top: 22px;
+  padding: 15px 17px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-sunk);
+}
+
+.feedback.is-correct { border-left-color: var(--strength); background: var(--strength-bg); }
+.feedback.is-wrong   { border-left-color: var(--weakness); background: var(--weakness-bg); }
+.feedback.is-partial { border-left-color: var(--accent);   background: var(--accent-soft); }
+
+.feedback-verdict { margin: 0 0 6px; font-weight: 600; font-size: .92rem; }
+.feedback-why { margin: 0; font-size: .85rem; line-height: 1.6; color: var(--text-muted); }
+.feedback-actions { margin-top: 14px; }
+
+.option.is-answer { border-color: var(--strength); box-shadow: inset 0 0 0 1px var(--strength); }
+.option.is-mistake { border-color: var(--weakness); box-shadow: inset 0 0 0 1px var(--weakness); }
+.option.is-locked { cursor: default; }
+.option.is-locked:hover { border-color: var(--border-strong); background: var(--surface-sunk); }
+.option.is-locked.is-answer:hover { border-color: var(--strength); }
+.option.is-locked.is-mistake:hover { border-color: var(--weakness); }
+
+.streak-note { font-size: .78rem; color: var(--text-muted); }

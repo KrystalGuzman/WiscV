@@ -128,12 +128,60 @@ uncertain numbers gives uncertain answers with a misleading air of precision.
 The report is written to keep that visible — it shows your raw score and the
 reference mean next to every converted score.
 
+## The practice areas
+
+`practice.html` lets you drill any one of the ten tasks on its own, with no
+timer on the untimed tasks, no scoring, and nothing recorded. Levels are
+selectable — how many rules govern a matrix, one scale or two on Figure Weights,
+a 2×2 or 3×3 block pattern — and Digit Span adapts, lengthening the span after a
+success and shortening it after a failure.
+
+The reason this is a separate mode rather than a setting on the test is
+**feedback**. The test says nothing about whether you were right, deliberately:
+telling you the answer partway through would teach you the pattern and
+invalidate every item after it. Practice does the opposite and explains every
+item:
+
+- **Matrix Reasoning** states the rules that actually generated the matrix
+  ("the shading stays the same across each row; the shape steps on by one"),
+  rather than inferring a pattern after the fact. It knows because the generator
+  recorded them.
+- **Figure Weights** restates the premises and does the arithmetic out loud.
+- **Similarities and Vocabulary** name what separates the full-credit answer
+  from the partial-credit one, which is the actual skill the task measures.
+- **Visual Puzzles** marks the correct pieces, and gives a different nudge when
+  you had two of the three than when you had none.
+- **Block Design** counts how many tiles still differ.
+- **Digit** and **Picture Span** show the sequence and the transformation.
+
+A result page links each flagged weakness straight into its drill, so
+"Figure Weights: Weakness" has somewhere to go.
+
+### What practice will and will not do
+
+Practising a task reliably makes you better at *that task*. Whether that
+transfers to anything else is a genuinely contested question, and the weight of
+the evidence on working-memory and reasoning training is that transfer to
+general ability is weak at best. The practice areas say so on the page rather
+than implying otherwise.
+
+There is also a specific consequence for this repository: **practising the tasks
+inflates your score on the practice test**, because the item formats are the
+same and some banks are finite (Similarities and Vocabulary have 14 and 16 items
+and you will eventually see them all). A retest score after drilling measures
+familiarity as much as ability. If you want a clean second look at your profile,
+take the test before you practise, not after.
+
 ## Privacy
 
 Everything runs in the browser. No responses, scores or timings are uploaded.
 The result is passed to the report page through the URL and `sessionStorage`,
 both of which are local to your browser session; nothing persists after you
 close the tab unless you save a file yourself.
+
+The practice areas record nothing at all. Session accuracy is held in memory and
+resets when you leave a task. They read the last test result from
+`sessionStorage`, if there is one, only to mark which tasks were flagged.
 
 ## Recalibrating
 
