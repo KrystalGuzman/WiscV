@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   isFatalSpeechError, isSupported, isAvailable, isSpeaking,
   isEnabled, setEnabled, setRate, getRate, speak, cancel, ready, hasFailed,
+  speakSchedule,
 } from '../src/ui/speech.js';
+import { digitSchedule } from '../src/exam/administration.js';
 
 describe('speech error classification', () => {
   // Regression, and the important one in this file. `cancel()` makes the API
@@ -90,5 +92,55 @@ describe('voice settings', () => {
     setRate('fast');
     assert.ok(Number.isFinite(getRate()));
     setRate(1);
+  });
+});
+
+describe('speakSchedule', () => {
+  test('calls back once per digit, in order, at its scheduled moment', async () => {
+    const schedule = digitSchedule([4, 1, 7], { intervalMs: 30 });
+    const seen = [];
+    const started = Date.now();
+    const run = speakSchedule(schedule, (entry, index) => {
+      seen.push({ digit: entry.digit, index, atMs: Date.now() - started });
+    }, { intervalMs: 30 });
+
+    await run.finished;
+    assert.deepEqual(seen.map((s) => s.digit), [4, 1, 7]);
+    assert.deepEqual(seen.map((s) => s.index), [0, 1, 2]);
+    // Each callback lands at roughly its slot, so the cadence is the app's.
+    assert.ok(seen[1].atMs >= 25, `second digit fired at ${seen[1].atMs}ms`);
+    assert.ok(seen[2].atMs >= 55, `third digit fired at ${seen[2].atMs}ms`);
+  });
+
+  test('does not resolve before the last digit has had its full slot', async () => {
+    // Regression: `finished` used to resolve on the schedule timer alone, so
+    // the caller moved on and spoke its next line — which cancelled digits that
+    // had been queued but never heard. Digit Span said nothing at all.
+    const schedule = digitSchedule([1, 2, 3], { intervalMs: 40 });
+    const started = Date.now();
+    await speakSchedule(schedule, null, { intervalMs: 40 }).finished;
+    const elapsed = Date.now() - started;
+    // Last digit sits at 80ms and owns the slot to 120ms.
+    assert.ok(elapsed >= 115, `resolved after only ${elapsed}ms, expected >= 115`);
+  });
+
+  test('stop() halts the run and withholds further callbacks', async () => {
+    const schedule = digitSchedule([1, 2, 3, 4, 5], { intervalMs: 25 });
+    const seen = [];
+    const run = speakSchedule(schedule, (entry) => seen.push(entry.digit), { intervalMs: 25 });
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    run.stop();
+    const atStop = seen.length;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    assert.equal(seen.length, atStop, `callbacks kept firing after stop: ${seen}`);
+    assert.ok(atStop < 5, 'stop happened too late to prove anything');
+  });
+
+  test('an empty schedule still settles', async () => {
+    const started = Date.now();
+    await speakSchedule([], null, { intervalMs: 20 }).finished;
+    assert.ok(Date.now() - started < 200);
   });
 });

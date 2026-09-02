@@ -236,24 +236,35 @@ export function speak(text, { rate = state.rate, interrupt = true } = {}) {
  */
 export function speakSchedule(schedule, onDigit, { intervalMs = 1000 } = {}) {
   const timers = [];
+  const utterances = [];
+  let stopped = false;
 
   const finished = new Promise((resolve) => {
     schedule.forEach((entry, index) => {
       timers.push(setTimeout(() => {
+        if (stopped) return;
         onDigit?.(entry, index);
-        // Digits are spoken without interrupting, so a slow voice overlapping
-        // the next slot is clipped rather than silencing what follows.
-        speak(entry.text, { interrupt: false });
+        // Digits queue rather than interrupt, so the run stays in order even if
+        // a slow voice overruns its slot.
+        utterances.push(speak(entry.text, { interrupt: false }));
       }, entry.atMs));
     });
 
     const lastAt = schedule.length === 0 ? 0 : schedule[schedule.length - 1].atMs;
-    timers.push(setTimeout(resolve, lastAt + intervalMs));
+    timers.push(setTimeout(() => {
+      // Resolve only once the last digit has actually finished being spoken,
+      // not merely when its slot elapses. Resolving on the timer alone let the
+      // caller move on and say its next line, which cancelled digits that had
+      // been queued but never heard.
+      Promise.all(utterances).then(() => { if (!stopped) resolve(); });
+    }, lastAt + intervalMs));
   });
 
   return {
     finished,
-    cancel() {
+    /** Named `stop` so it cannot be confused with the module-level cancel(). */
+    stop() {
+      stopped = true;
       for (const timer of timers) clearTimeout(timer);
       cancel();
     },

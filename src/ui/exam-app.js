@@ -953,7 +953,7 @@ function presentDigitSpan(subtest) {
     }, { intervalMs: DIGIT_INTERVAL_MS });
 
     state.speaking = run;
-    state.timers.push({ kind: 'listener', id: 0, remove: () => run.cancel() });
+    state.timers.push({ kind: 'listener', id: 0, remove: () => run.stop() });
     run.finished.then(() => { if (!stage.isConnected) return; collect(); });
   }
 
@@ -997,10 +997,15 @@ function presentDigitSpan(subtest) {
     input.focus();
   };
 
-  // The examiner names the condition before each run, and this line may be
-  // repeated; the digits themselves may not.
-  say(promptFor('ds', { mode: section.mode }));
-  later(presentDigits, 900);
+  // The examiner names the condition, and only when that line has finished do
+  // the digits begin. Starting them while the prompt is still being spoken
+  // queued them behind it, and the next line then cancelled them before they
+  // were ever heard.
+  const token = state.screenToken;
+  say(promptFor('ds', { mode: section.mode })).then(() => {
+    if (state.screenToken !== token) return;
+    later(presentDigits, 600);
+  });
 }
 
 /** The listening stage: no digits, just a signal that something is being said. */

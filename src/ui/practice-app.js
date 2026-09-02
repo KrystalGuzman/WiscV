@@ -752,8 +752,12 @@ function presentDigitSpan() {
     input.focus();
   };
 
-  speech.speak(promptFor('ds', { mode }));
-  setTimeout(step, 800);
+  // As in the test: wait for the spoken instruction to finish, or the digits
+  // queue behind it and are cancelled before they are heard.
+  speech.speak(promptFor('ds', { mode })).then(() => {
+    if (!stage.isConnected) return;   // moved on to another item
+    setTimeout(step, 600);
+  });
 }
 
 /** The listening stage: no digits, just a signal that something is being said. */
