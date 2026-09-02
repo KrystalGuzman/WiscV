@@ -22,6 +22,34 @@ import { estimateSpeechMs } from '../exam/administration.js';
 
 const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
 
+/**
+ * Error codes that mean this engine genuinely cannot speak.
+ *
+ * Crucially, `canceled` and `interrupted` are NOT among them. Those are what
+ * the API reports when speech is deliberately stopped — which this app does on
+ * every screen change and before every interrupting utterance. Treating them as
+ * capability failures disabled the voice permanently the first time the user
+ * moved to a new screen, which is exactly what happened.
+ */
+const FATAL_ERRORS = new Set([
+  'synthesis-failed',
+  'synthesis-unavailable',
+  'audio-hardware',
+  'voice-unavailable',
+  'language-unavailable',
+]);
+
+/**
+ * Whether an utterance error means the engine cannot speak at all, as opposed
+ * to a transient problem or an interruption this app caused itself.
+ *
+ * Exported so the rule can be tested directly: getting it wrong silently kills
+ * the voice for the rest of the session, which is not visible in any output.
+ */
+export function isFatalSpeechError(code) {
+  return FATAL_ERRORS.has(code);
+}
+
 const state = {
   enabled: true,
   rate: 0.95,          // a shade under natural pace; examiners do not rush
@@ -122,8 +150,6 @@ export function speak(text, { rate = state.rate, interrupt = true } = {}) {
   if (!phrase) return Promise.resolve('skipped');
   if (!state.enabled || !synth || !isAvailable()) return Promise.resolve('skipped');
 
-  if (interrupt) cancel();
-
   // Callers speak fire-and-forget. A rejected promise here would surface as an
   // unhandled rejection rather than a caught failure, so this never rejects:
   // every path resolves with an outcome instead.
@@ -156,10 +182,12 @@ export function speak(text, { rate = state.rate, interrupt = true } = {}) {
     }
 
     utterance.onend = () => settle('spoken');
-    utterance.onerror = () => {
-      // One hard failure means this machine cannot speak; stop claiming it can.
-      state.known.working = false;
-      settle('failed');
+    utterance.onerror = (event) => {
+      const code = event?.error ?? 'unknown';
+      // Only a genuine engine failure means this machine cannot speak. Being
+      // interrupted is something this app does to itself, constantly.
+      if (FATAL_ERRORS.has(code)) state.known.working = false;
+      settle(code === 'canceled' || code === 'interrupted' ? 'interrupted' : 'failed');
     };
 
     // Chrome pauses long utterances after ~15s; a periodic resume prevents it.
@@ -173,12 +201,24 @@ export function speak(text, { rate = state.rate, interrupt = true } = {}) {
       estimateSpeechMs(phrase, rate) + 2000
     );
 
-    try {
-      synth.speak(utterance);
-      state.known.working = state.known.working ?? true;
-    } catch {
-      state.known.working = false;
-      settle('failed');
+    const start = () => {
+      try {
+        synth.speak(utterance);
+        state.known.working = state.known.working ?? true;
+      } catch {
+        state.known.working = false;
+        settle('failed');
+      }
+    };
+
+    // Only cancel when there is something to cancel, and never queue in the
+    // same tick as a cancel: Chrome drops an utterance handed to it while it is
+    // still tearing the previous one down.
+    if (interrupt && (synth.speaking || synth.pending)) {
+      cancel();
+      setTimeout(start, 0);
+    } else {
+      start();
     }
   });
 }
@@ -221,5 +261,19 @@ export function speakSchedule(schedule, onDigit, { intervalMs = 1000 } = {}) {
 }
 
 export function cancel() {
-  try { synth?.cancel(); } catch { /* nothing useful to do */ }
+  if (!synth) return;
+  try {
+    synth.cancel();
+    // Chrome can be left in a paused state by a cancel, after which nothing
+    // further is ever spoken until it is resumed.
+    if (synth.paused) synth.resume();
+  } catch { /* nothing useful to do */ }
+}
+
+/**
+ * Whether the engine has reported a fatal failure.
+ * Exposed so the UI can explain the fallback rather than silently going quiet.
+ */
+export function hasFailed() {
+  return state.known.working === false;
 }

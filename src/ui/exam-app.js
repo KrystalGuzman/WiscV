@@ -37,6 +37,8 @@ const state = {
   captions: true,   // show what the examiner says, as well as saying it
   lastSpoken: '',   // for "Say that again"
   speaking: null,   // an in-flight scheduled presentation, so it can be cancelled
+  screenToken: 0,   // bumped on every screen change; narration checks it
+  pendingOpening: null,  // spoken once, ahead of the first subtest's intro
 };
 
 // ---------------------------------------------------------------------------
@@ -80,13 +82,36 @@ function clearTimers() {
  * rides alongside.
  */
 function say(line, { remember = true } = {}) {
-  const text = String(line ?? '').trim();
-  if (!text) return Promise.resolve('skipped');
+  return sayLines([line], { remember });
+}
 
-  if (remember) state.lastSpoken = text;
-  showCaption(text);
-  updateRepeatButton();
-  return speech.speak(text);
+/**
+ * Say several lines in sequence, as an examiner would — instructions, then the
+ * question — rather than each one cutting off the last.
+ *
+ * Bound to the screen it started on. Previously the opening line was spoken and
+ * the intro screen rendered in the same tick, so the render's cancel killed the
+ * line that had just started; now a screen change simply ends the sequence.
+ */
+async function sayLines(lines, { remember = true } = {}) {
+  const token = state.screenToken;
+  let last = 'skipped';
+
+  for (const [index, line] of lines.entries()) {
+    const text = String(line ?? '').trim();
+    if (!text) continue;
+    if (state.screenToken !== token) return 'interrupted';
+
+    if (remember) state.lastSpoken = text;
+    showCaption(text);
+    updateRepeatButton();
+
+    // Only the first line interrupts whatever came before; the rest queue
+    // behind it, so a sequence is not self-cancelling.
+    last = await speech.speak(text, { interrupt: index === 0 });
+    if (last === 'failed') break;
+  }
+  return last;
 }
 
 function showCaption(text) {
@@ -117,6 +142,7 @@ function updateRepeatButton() {
 function screen(templateId) {
   clearTimers();
   speech.cancel();
+  state.screenToken += 1;   // anything still narrating the old screen stops here
   const template = document.getElementById(templateId);
   const node = template.content.cloneNode(true);
   root.replaceChildren(node);
@@ -160,7 +186,9 @@ function reportAudio(outcome) {
   if (!status) return;
 
   status.classList.remove('is-ok', 'is-warn');
-  if (outcome === 'ready' || outcome === 'spoken' || outcome === 'timeout') {
+  const usable = outcome !== 'none' && outcome !== 'failed' &&
+                 speech.isAvailable() && !speech.hasFailed();
+  if (usable) {
     status.classList.add('is-ok');
     const voice = speech.voiceName();
     status.textContent = voice
@@ -208,7 +236,7 @@ function startSession(seed) {
     }
   });
 
-  say(EXAMINER_SCRIPT.opening);
+  state.pendingOpening = EXAMINER_SCRIPT.opening;
   showIntro();
 }
 
@@ -359,16 +387,16 @@ function showIntro() {
 
   updateBar({ label: 'Instructions' });
 
-  // The examiner reads the standardised instructions for this subtest aloud.
+  // The examiner reads the standardised instructions aloud — preceded, on the
+  // very first subtest, by the opening remarks.
   const script = scriptFor(subtest.id);
-  if (script?.intro) say(script.intro);
-
   const sample = sampleFor(subtest.id);
-  if (sample) {
-    renderSample(subtest, sample);
-    // Spoken after the instructions, so the two do not overlap.
-    later(() => say(sampleSpoken(subtest.id)), 400);
-  }
+  if (sample) renderSample(subtest, sample);
+
+  const lines = [state.pendingOpening, script?.intro];
+  if (sample) lines.push(sampleSpoken(subtest.id));
+  state.pendingOpening = null;
+  sayLines(lines);
 
   document.getElementById('btn-begin').addEventListener('click', beginSubtest);
   document.getElementById('btn-skip-intro').addEventListener('click', skipSubtest);
