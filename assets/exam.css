@@ -367,7 +367,12 @@
 
 .span-entry { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
 
-.span-input {
+/*
+ * Qualified with `input` deliberately: the base stylesheet sets
+ * `input[type="text"] { width: 100% }`, which out-specifies a bare class and
+ * stretched this field across the card, wrapping its button onto a new line.
+ */
+input.span-input {
   font-family: var(--font-num);
   font-size: 1.5rem;
   letter-spacing: .28em;
@@ -442,7 +447,7 @@
   min-height: 132px;
 }
 
-.coding-input {
+input.coding-input {
   font-family: var(--font-num);
   font-size: 2rem;
   text-align: center;
@@ -661,3 +666,128 @@
   color: var(--text-muted);
   margin: 14px 0 0;
 }
+
+/* --- Spoken administration ------------------------------------------------ */
+
+.examiner-caption {
+  /* Full-width band, with the text held to the same column as the content. */
+  margin: 0;
+  padding-block: 9px 11px;
+  padding-inline: max(20px, calc((100% - 780px) / 2));
+  font-size: .86rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--accent-soft);
+  border-top: 1px solid var(--border);
+}
+
+.examiner-caption::before {
+  content: '“';
+  color: var(--text-faint);
+}
+.examiner-caption::after {
+  content: '”';
+  color: var(--text-faint);
+}
+
+.examiner-caption.is-speaking { border-left: 3px solid var(--accent); }
+
+#btn-voice[aria-pressed="false"] { opacity: .65; }
+
+.audio-setup {
+  margin: 18px 0 22px;
+  padding: 15px 17px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+}
+
+.audio-status { margin: 0 0 12px; font-size: .86rem; line-height: 1.55; }
+.audio-status.is-ok { color: var(--strength); }
+.audio-status.is-warn { color: var(--weakness); }
+
+.audio-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+.inline-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.inline-check input { width: auto; }
+
+/* --- Teaching (sample) items ---------------------------------------------- */
+
+.sample-block {
+  margin: 20px 0 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.sample-label {
+  margin: 0 0 4px;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.sample-stem { margin: 0 0 13px; font-size: 1.02rem; font-weight: 600; }
+.sample-options { display: grid; gap: 8px; }
+.sample-teach { margin: 14px 0 0; font-size: .86rem; line-height: 1.6; }
+.sample-teach.is-right { color: var(--strength); }
+
+.sample-footnote {
+  margin: 14px 0 0;
+  font-size: .78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* --- Listening (auditory) presentation ------------------------------------ */
+
+.listening-stage {
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.listening-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.listening-icon.is-active { animation: listening-pulse 1s ease-in-out infinite; }
+
+@keyframes listening-pulse {
+  0%, 100% { opacity: .35; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listening-icon.is-active { animation: none; opacity: 1; }
+}
+
+.listening-note { font-size: .86rem; color: var(--text-muted); margin: 0; max-width: 42ch; }
+
+.listening-dots { display: flex; gap: 10px; }
+.listening-dot {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.listening-dot.is-done { background: var(--accent); }

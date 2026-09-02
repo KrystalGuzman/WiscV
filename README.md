@@ -3,8 +3,9 @@
 Two dependency-free web apps sharing one scoring engine:
 
 - **[Practice test](docs/PRACTICE-TEST.md)** (`exam.html`) — take an original
-  ten-task cognitive test built in the same formats the WISC-V uses, and get a
-  full profile of how you did. About 25–35 minutes.
+  ten-task cognitive test built in the same formats the WISC-V uses, **read aloud
+  by a synthetic examiner** as the real one is administered, and get a full
+  profile of how you did. About 25–35 minutes.
 - **[Practice areas](docs/PRACTICE-TEST.md#the-practice-areas)** (`practice.html`) —
   drill any one task on its own, untimed and unscored, with an **Explain this
   problem** walkthrough before you answer and a full explanation after. The test
@@ -160,6 +161,30 @@ does. The report shows your raw score and the reference mean beside every
 converted score, so you can see what the conversion is doing rather than take it
 on faith. Full detail in [docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md).
 
+## Spoken administration
+
+The WISC-V is given one to one: an examiner reads standardised instructions and
+each question aloud. For some subtests that is not packaging, it *is* the test.
+
+The examiner's script lives in
+[`src/exam/administration.js`](src/exam/administration.js) and is spoken through
+the browser's speech synthesiser, captioned on screen throughout, and switchable
+off. Similarities and Vocabulary open with a **teaching item** that is answered,
+explained and not scored. Instructions can be repeated on request — except on
+Digit Span and Picture Span, where repetition would measure something other than
+span, so the control is hidden rather than merely inert.
+
+**Digit Span is now a listening task**, which is the point of it: the digits are
+read at one per second and never shown. Displaying them, as this app previously
+did, makes it an easier and different task.
+
+Speech is an enhancement over a timer-driven test, never the clock itself. Many
+machines have no voice installed — the API is present, looks functional, and
+then fails every utterance — so **nothing in the test waits on speech**, and a
+missing voice cannot stall a subtest. Where that happens Digit Span falls back to
+showing its digits, the substitution is recorded with the result, and the report
+says the score is inflated rather than presenting it as comparable.
+
 ## Practice areas
 
 `practice.html` drills any single task, untimed and unscored, and explains every
@@ -205,6 +230,7 @@ src/core/norms.js       optional user-supplied norms tables
 src/exam/rng.js         seeded random numbers
 src/exam/generators.js  procedural item generation, with self-verification
 src/exam/verbal-items.js  hand-written verbal item banks
+src/exam/administration.js  the examiner's spoken script, samples, repetition rules
 src/exam/reference.js   the estimated reference distribution (the "not norms" file)
 src/exam/session.js     test construction, discontinue rules, raw scoring
 src/exam/explain.js     plain-language explanations of why an answer is what it is
@@ -212,6 +238,7 @@ src/exam/walkthrough.js how to work through a problem, revealed a step at a time
 
 src/ui/app.js           calculator state, rendering, import/export
 src/ui/charts.js        SVG profile charts
+src/ui/speech.js        the examiner's voice; guaranteed never to hang
 src/ui/exam-app.js      test administration and flow
 src/ui/exam-render.js   SVG stimuli
 src/ui/results-app.js   the practice test report
@@ -272,6 +299,13 @@ On the practice test:
   broken is worse than none.
 - No walkthrough gives the answer away in its first step, and strategy-only
   walkthroughs never name the stimulus.
+- Digit Span refuses repetition and is the only auditory subtest; every subtest
+  has a spoken script whose prompts resolve to real text.
+- Digits are scheduled at an even cadence, never grouped — grouping would do the
+  examinee's chunking for them and inflate the span.
+- `estimateSpeechMs` treats absent input as silence rather than as the word
+  "null", and over-estimates deliberately, since it is a deadline for giving up
+  on speech events and firing early cuts the examiner off mid-sentence.
 - `asFraction` refuses a float rather than emitting nonsense: a ratio recovered
   from a division has already lost the exact fraction.
 

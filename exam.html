@@ -18,11 +18,14 @@
     </div>
     <div class="exam-bar-right">
       <span class="exam-timer" id="bar-timer" hidden></span>
+      <button type="button" id="btn-repeat" class="btn btn-quiet" hidden>Say that again</button>
+      <button type="button" id="btn-voice" class="btn btn-quiet" aria-pressed="true">Voice on</button>
       <button type="button" id="btn-skip" class="btn btn-quiet">Skip subtest</button>
       <button type="button" id="btn-quit" class="btn btn-quiet">End test</button>
     </div>
   </div>
   <div class="exam-progress"><div class="exam-progress-fill" id="bar-fill"></div></div>
+  <p class="examiner-caption" id="examiner-caption" hidden></p>
 </header>
 
 <main class="exam-main" id="exam-root"></main>
@@ -55,6 +58,25 @@
       <li><strong>Coding</strong> &amp; <strong>Symbol Search</strong> — working quickly and accurately</li>
     </ol>
 
+    <h2>How it is given</h2>
+    <p class="lede">
+      The real WISC&#8209;V is given one to one: an examiner sits with the child and reads
+      the instructions and each question aloud. This version does the same with a
+      synthetic voice, because for some tasks it genuinely matters &mdash; Digit Span is a
+      <em>listening</em> task, where the numbers are spoken once and never shown.
+    </p>
+
+    <div class="audio-setup" id="audio-setup">
+      <p class="audio-status" id="audio-status">Checking whether this browser can speak&hellip;</p>
+      <div class="audio-actions">
+        <button type="button" id="btn-test-voice" class="btn">Hear the examiner</button>
+        <label class="inline-check">
+          <input type="checkbox" id="f-captions" checked>
+          Show the words on screen as well
+        </label>
+      </div>
+    </div>
+
     <div class="exam-tips">
       <p><strong>Before you start:</strong> find somewhere quiet, and don't use notes, a
       calculator or anything to write with — several tasks measure what you can hold in
@@ -78,6 +100,7 @@
     <p class="lede" id="intro-lede"></p>
     <div class="exam-demo" id="intro-demo"></div>
     <ul class="exam-rules" id="intro-rules"></ul>
+    <div class="sample-block" id="intro-sample" hidden></div>
     <div class="exam-actions">
       <button type="button" id="btn-begin" class="btn btn-primary btn-large">Begin</button>
       <button type="button" id="btn-skip-intro" class="btn btn-quiet">Skip this subtest</button>

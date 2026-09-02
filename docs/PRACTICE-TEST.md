@@ -51,6 +51,62 @@ reference distribution being right, only on it being consistently wrong. The
 strengths-and-weaknesses table compares each task with your own average, which
 makes it the most robust part of the report.
 
+## How it is administered
+
+The WISC-V is **individually administered**. A qualified examiner sits with the
+child, reads standardised instructions and each question aloud, works through a
+teaching item before the scored ones, and decides when a subtest has run its
+course. That is not packaging around the test — for some subtests it *is* the
+test.
+
+This version reproduces the shape of that:
+
+**The examiner speaks.** Instructions and item prompts are read aloud through
+the browser's speech synthesiser, with the wording held in
+[`src/exam/administration.js`](../src/exam/administration.js). (Published
+manuals specify their instructions verbatim and that text is copyrighted, so
+none of it is reproduced; these serve the same function in the same register.)
+Everything spoken is also captioned on screen, so nothing is lost if you cannot
+hear it, and the voice can be switched off entirely.
+
+**Digit Span is a listening task.** This is the one that matters most. Real
+Digit Span is presented by voice: the numbers are read at about one per second,
+evenly, and are *never shown*. Displaying them, as an earlier version of this
+app did, turns an auditory working-memory task into a visual one — an easier
+task, and a different one. Where the browser can speak, the digits are now heard
+and not seen, at a one-second cadence driven by the app's own timer rather than
+by the synthesiser.
+
+**Teaching items come first.** Similarities and Vocabulary open with a sample
+item that is answered, explained, and not scored. Real administration does this
+because an examinee who has misunderstood the task fails the first real items
+for a reason that has nothing to do with ability.
+
+**Repetition is allowed, except where it is not.** Instructions and prompts can
+be repeated on request. Digit Span and Picture Span refuse: hearing a sequence
+twice measures something other than span, so the control is hidden rather than
+merely ignored.
+
+### When the browser cannot speak
+
+Many machines have no speech voice installed — the API is present and looks
+functional, then fails every utterance. The test is built so this changes
+nothing structural: **item pacing runs on its own timers and never waits on
+speech**, so a missing voice cannot stall a subtest. The welcome screen checks
+and says plainly what will happen.
+
+The one real casualty is Digit Span, which falls back to showing its digits.
+That is a materially easier task, so the substitution is recorded with the
+result and the report says so rather than presenting the score as comparable.
+
+### What a voice still is not
+
+A synthetic examiner reads. A real one probes a vague answer, notices a
+misunderstood task, spots fatigue or anxiety, and judges whether a score is a
+fair reflection of the child at all. None of that happens here, and the free
+responses a real examiner scores by rubric are replaced by forced choice. The
+report says this too.
+
 ## The ten tasks
 
 | Area | Task | Format | Items | Timing |

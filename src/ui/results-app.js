@@ -59,15 +59,16 @@ function loadResult() {
 function render(data) {
   const scaled = data.scaled ?? {};
   const raw = data.raw ?? {};
+  const presentation = data.presentation ?? {};
   const results = scoreProtocol(scaled, { alpha: 0.05, basis: 'true', swReference: 'fsiq' });
 
   renderSubtitle(data, results);
   renderCards(results);
   renderCharts(results);
-  renderSubtestTable(results, raw, scaled);
+  renderSubtestTable(results, raw, scaled, presentation);
   renderStrengthsWeaknesses(results);
   renderComparisons(results);
-  renderCaveats(results, scaled);
+  renderCaveats(results, scaled, presentation);
   wireActions(data, scaled);
 }
 
@@ -150,7 +151,7 @@ function renderCharts(results) {
 
 // --- Per-task table ---------------------------------------------------------
 
-function renderSubtestTable(results, raw, scaled) {
+function renderSubtestTable(results, raw, scaled, presentation = {}) {
   const body = $('subtest-table').querySelector('tbody');
   body.replaceChildren();
 
@@ -199,11 +200,22 @@ function renderSubtestTable(results, raw, scaled) {
     body.append(row);
   }
 
-  const notes = [
+  const notes = [];
+
+  // Digit Span is a listening task. If it ran visually, the score is not
+  // comparable, and saying so is more useful than a footnote nobody reads.
+  if (presentation.ds === 'visual' && scaled.ds != null) {
+    notes.push(
+      'Digit Span was shown on screen rather than read aloud, because this browser ' +
+      'had no speech voice available. Seeing the numbers is easier than hearing them, ' +
+      'so that score — and the Working Memory index that depends on it — is inflated ' +
+      'relative to the listening task it models.');
+  }
+
+  notes.push(
     'A short test cannot separate performances at the very top. The highest scaled ' +
     'score each task can yield here is: ' +
-    SUBTESTS.map((s) => `${s.abbr} ${ceilings[s.id]}`).join(', ') + '.',
-  ];
+    SUBTESTS.map((s) => `${s.abbr} ${ceilings[s.id]}`).join(', ') + '.');
   if (capped.length > 0) {
     notes.push(`You reached the maximum raw score on ${capped.join(', ')}, so your score ` +
       'there is a floor on your ability, not a measure of it.');
@@ -313,7 +325,7 @@ function renderComparisons(results) {
 
 // --- Caveats ----------------------------------------------------------------
 
-function renderCaveats(results, scaled) {
+function renderCaveats(results, scaled, presentationMode = {}) {
   const host = $('caveats');
   host.replaceChildren();
 
@@ -329,15 +341,31 @@ function renderCaveats(results, scaled) {
      'The verbal tasks give you answers to choose between. Being able to pick the best ' +
      'definition is easier than producing one, so those scores run higher than the ' +
      'open-ended format they are modelled on would give.'],
-    ['One sitting, no examiner.',
-     'Distraction, a misread instruction, a slow connection or a bad night all land in ' +
-     'the score with nothing to catch them.'],
+    ['A voice is not an examiner.',
+     'The instructions and questions were read aloud, as they would be in a real ' +
+     'assessment. But a qualified examiner does far more than read: they probe a ' +
+     'vague answer, notice when a task has been misunderstood, spot fatigue or ' +
+     'anxiety, and judge whether a score is a fair reflection of the child at all. ' +
+     'None of that happens here, so distraction, a misread instruction or a bad ' +
+     'night land in the score with nothing to catch them.'],
     ['The shape beats the numbers.',
      'Which areas came out higher or lower relative to each other is the most robust ' +
      'thing here, because it does not depend on the reference distribution being right.'],
   ];
 
   // Point at the actual pattern in front of the reader, when there is one.
+  if (presentationMode.ds === 'auditory') {
+    points.push(['Digit Span was heard, not seen.',
+      'The numbers were read aloud once and never shown, which is how that subtest ' +
+      'is meant to work. It is the one place this version matches real administration ' +
+      'closely.']);
+  } else if (presentationMode.ds === 'visual') {
+    points.push(['Digit Span was shown, not heard.',
+      'No speech voice was available, so the numbers appeared on screen. That is an ' +
+      'easier task than listening, so treat that score and the Working Memory index ' +
+      'as inflated.']);
+  }
+
   const spread = spreadOf(scaled);
   if (spread != null && spread >= 6) {
     points.push(['Your profile is uneven.',

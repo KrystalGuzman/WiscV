@@ -31,6 +31,8 @@ import {
   walkCoding, walkSymbolSearch,
 } from '../exam/walkthrough.js';
 import { expectedDigitResponse } from '../exam/session.js';
+import { digitSchedule, promptFor, DIGIT_INTERVAL_MS } from '../exam/administration.js';
+import * as speech from './speech.js';
 import {
   renderMatrix, renderMatrixCell, renderScale, renderShapeGroup,
   renderTileGrid, renderPuzzlePiece, renderPuzzleTarget, renderGlyph,
@@ -679,18 +681,39 @@ function presentDigitSpan() {
   const stage = document.createElement('div');
   stage.className = 'span-stage';
   $('drill-stimulus').append(stage);
-  $('drill-hint').textContent = `Span ${state.span} — it grows when you get one right.`;
 
-  let index = 0;
-  const step = () => {
-    if (index >= digits.length) { collect(); return; }
-    const node = document.createElement('span');
-    node.className = 'span-digit';
-    node.textContent = String(digits[index]);
-    stage.replaceChildren(node);
-    index += 1;
-    setTimeout(() => { stage.replaceChildren(); setTimeout(step, 300); }, 800);
-  };
+  // Match the test: where a voice exists this is a listening task, and the
+  // digits are never shown. Practising it visually would drill a different
+  // skill from the one the test measures.
+  const spoken = speech.isSpeaking();
+  $('drill-hint').textContent =
+    `Span ${state.span} — it grows when you get one right.` +
+    (spoken ? ' The numbers are read aloud, not shown.' : '');
+
+  const step = spoken ? presentAloud : presentOnScreen;
+
+  function presentAloud() {
+    stage.replaceChildren(listeningStage(digits.length));
+    const dots = [...stage.querySelectorAll('.listening-dot')];
+    const run = speech.speakSchedule(digitSchedule(digits), (_entry, i) => {
+      dots[i]?.classList.add('is-done');
+    }, { intervalMs: DIGIT_INTERVAL_MS });
+    run.finished.then(() => { if (stage.isConnected) collect(); });
+  }
+
+  function presentOnScreen() {
+    let index = 0;
+    const showNext = () => {
+      if (index >= digits.length) { collect(); return; }
+      const node = document.createElement('span');
+      node.className = 'span-digit';
+      node.textContent = String(digits[index]);
+      stage.replaceChildren(node);
+      index += 1;
+      setTimeout(() => { stage.replaceChildren(); setTimeout(showNext, 300); }, 800);
+    };
+    showNext();
+  }
 
   const collect = () => {
     const waiting = document.createElement('span');
@@ -729,7 +752,36 @@ function presentDigitSpan() {
     input.focus();
   };
 
-  setTimeout(step, 600);
+  speech.speak(promptFor('ds', { mode }));
+  setTimeout(step, 800);
+}
+
+/** The listening stage: no digits, just a signal that something is being said. */
+function listeningStage(count) {
+  const wrap = document.createElement('div');
+  wrap.className = 'listening-stage';
+
+  const icon = document.createElement('div');
+  icon.className = 'listening-icon is-active';
+  icon.textContent = '🔊';
+  icon.setAttribute('role', 'img');
+  icon.setAttribute('aria-label', 'The numbers are being read aloud');
+
+  const note = document.createElement('p');
+  note.className = 'listening-note';
+  note.textContent = 'Listen. The numbers are read once and are not shown.';
+
+  const dots = document.createElement('div');
+  dots.className = 'listening-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < count; i += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'listening-dot';
+    dots.append(dot);
+  }
+
+  wrap.append(icon, note, dots);
+  return wrap;
 }
 
 /** A digit run with no repeats and no straight ascending or descending runs. */

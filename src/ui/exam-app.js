@@ -13,12 +13,18 @@ import { buildSession, scoreSession, sessionLength, expectedDigitResponse } from
 import { TILE_STATES, GLYPHS } from '../exam/generators.js';
 import { randomSeed } from '../exam/rng.js';
 import {
+  EXAMINER_SCRIPT, scriptFor, promptFor, isRepeatable, isAuditory, sampleFor,
+  sampleSpoken, teachingFeedback, digitSchedule, DIGIT_INTERVAL_MS,
+} from '../exam/administration.js';
+import * as speech from './speech.js';
+import {
   renderMatrix, renderMatrixCell, renderScale, renderShapeGroup,
   renderTileGrid, renderPuzzlePiece, renderPuzzleTarget, renderGlyph,
 } from './exam-render.js';
 
 const root = document.getElementById('exam-root');
 const bar = document.getElementById('exam-bar');
+const $ = (id) => document.getElementById(id);
 
 const state = {
   session: null,
@@ -28,6 +34,9 @@ const state = {
   completed: 0,     // units presented so far, for the progress bar
   total: 0,
   timers: [],       // every pending timeout/interval, so they can all be cleared
+  captions: true,   // show what the examiner says, as well as saying it
+  lastSpoken: '',   // for "Say that again"
+  speaking: null,   // an in-flight scheduled presentation, so it can be cancelled
 };
 
 // ---------------------------------------------------------------------------
@@ -60,11 +69,54 @@ function clearTimers() {
 }
 
 // ---------------------------------------------------------------------------
+// The examiner's voice
+// ---------------------------------------------------------------------------
+
+/**
+ * Say a line as the examiner would, and caption it.
+ *
+ * Never awaited by anything that gates the test: a machine with no voices fails
+ * an utterance immediately, so item pacing stays on its own timers and speech
+ * rides alongside.
+ */
+function say(line, { remember = true } = {}) {
+  const text = String(line ?? '').trim();
+  if (!text) return Promise.resolve('skipped');
+
+  if (remember) state.lastSpoken = text;
+  showCaption(text);
+  updateRepeatButton();
+  return speech.speak(text);
+}
+
+function showCaption(text) {
+  const node = $('examiner-caption');
+  if (!node) return;
+  if (!state.captions || !text) { node.hidden = true; return; }
+  node.textContent = text;
+  node.hidden = false;
+}
+
+/**
+ * "Say that again" is offered only where repeating is legitimate. Digit Span
+ * refuses it: hearing a sequence twice measures something other than span, so
+ * the control is hidden rather than merely inert.
+ */
+function updateRepeatButton() {
+  const button = $('btn-repeat');
+  if (!button) return;
+  const subtest = currentSubtest();
+  const allowed = Boolean(state.lastSpoken) && subtest && isRepeatable(subtest.id);
+  button.hidden = !allowed;
+}
+
+// ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
 
 function screen(templateId) {
   clearTimers();
+  speech.cancel();
   const template = document.getElementById(templateId);
   const node = template.content.cloneNode(true);
   root.replaceChildren(node);
@@ -86,6 +138,42 @@ function showWelcome() {
     `Session seed ${seed}. Adding ?seed=${seed} to this page's address reproduces exactly this test.`;
 
   document.getElementById('btn-start').addEventListener('click', () => startSession(seed));
+
+  $('f-captions').addEventListener('change', (event) => {
+    state.captions = event.target.checked;
+  });
+
+  $('btn-test-voice').addEventListener('click', async () => {
+    const outcome = await speech.speak(
+      "Hello. I'll be reading the instructions and questions aloud as we go.");
+    reportAudio(outcome);
+  });
+
+  // Voices load asynchronously, and on some browsers never announce themselves,
+  // so this resolves either way rather than leaving the notice hanging.
+  speech.ready().then((hasVoice) => reportAudio(hasVoice ? 'ready' : 'none'));
+}
+
+/** Say plainly what audio this browser can manage, and what changes without it. */
+function reportAudio(outcome) {
+  const status = $('audio-status');
+  if (!status) return;
+
+  status.classList.remove('is-ok', 'is-warn');
+  if (outcome === 'ready' || outcome === 'spoken' || outcome === 'timeout') {
+    status.classList.add('is-ok');
+    const voice = speech.voiceName();
+    status.textContent = voice
+      ? `Ready to speak, using the "${voice}" voice. Press the button to hear it.`
+      : 'Ready to speak. Press the button to hear it.';
+  } else {
+    status.classList.add('is-warn');
+    status.textContent =
+      'This browser has no speech voice installed, so the examiner cannot read aloud. ' +
+      'Everything will be shown as text instead. Digit Span will show its numbers on ' +
+      'screen rather than speaking them, which makes it easier than the listening task ' +
+      'it is meant to be — that subtest will be marked as visually presented.';
+  }
 }
 
 function startSession(seed) {
@@ -96,6 +184,23 @@ function startSession(seed) {
   state.total = sessionLength(state.session);
 
   bar.hidden = false;
+
+  $('btn-voice').addEventListener('click', () => {
+    const on = !speech.isEnabled();
+    speech.setEnabled(on);
+    const button = $('btn-voice');
+    button.textContent = on ? 'Voice on' : 'Voice off';
+    button.setAttribute('aria-pressed', String(on));
+    // Captions carry the whole script when the voice is off, so turning it off
+    // never removes information.
+    if (!on) { state.captions = true; showCaption(state.lastSpoken); }
+  });
+
+  $('btn-repeat').addEventListener('click', () => {
+    if (!isRepeatable(currentSubtest()?.id)) return;
+    say(state.lastSpoken, { remember: false });
+  });
+
   document.getElementById('btn-skip').addEventListener('click', skipSubtest);
   document.getElementById('btn-quit').addEventListener('click', () => {
     if (confirm('End the test now? Subtests you have not reached will be left out of the profile.')) {
@@ -103,6 +208,7 @@ function startSession(seed) {
     }
   });
 
+  say(EXAMINER_SCRIPT.opening);
   showIntro();
 }
 
@@ -252,8 +358,72 @@ function showIntro() {
   else demo.remove();
 
   updateBar({ label: 'Instructions' });
+
+  // The examiner reads the standardised instructions for this subtest aloud.
+  const script = scriptFor(subtest.id);
+  if (script?.intro) say(script.intro);
+
+  const sample = sampleFor(subtest.id);
+  if (sample) {
+    renderSample(subtest, sample);
+    // Spoken after the instructions, so the two do not overlap.
+    later(() => say(sampleSpoken(subtest.id)), 400);
+  }
+
   document.getElementById('btn-begin').addEventListener('click', beginSubtest);
   document.getElementById('btn-skip-intro').addEventListener('click', skipSubtest);
+}
+
+/**
+ * A teaching item: answered, told the answer, and not scored.
+ *
+ * Real administration works this way for good reason — an examinee who
+ * misunderstands the task fails the first real items for a reason that has
+ * nothing to do with ability.
+ */
+function renderSample(subtest, sample) {
+  const host = $('intro-sample');
+  host.hidden = false;
+  host.replaceChildren();
+
+  host.append(textNode('p', 'sample-label', 'Try this one first'));
+  host.append(textNode('p', 'sample-stem', sample.stem));
+
+  const options = document.createElement('div');
+  options.className = 'sample-options';
+  const shuffled = [...sample.options];
+
+  shuffled.forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'option';
+    button.textContent = option.text;
+    button.addEventListener('click', () => {
+      for (const other of options.querySelectorAll('.option')) {
+        other.disabled = true;
+        other.classList.add('is-locked');
+      }
+      button.classList.add(option.credit === 2 ? 'is-answer' : 'is-mistake');
+      const highest = shuffled.find((o) => o.credit === 2);
+      const best = [...options.querySelectorAll('.option')]
+        .find((node) => node.textContent === highest.text);
+      best?.classList.add('is-answer');
+
+      const feedback = teachingFeedback(subtest.id, option.credit);
+      const note = textNode('p', 'sample-teach', feedback);
+      if (option.credit === 2) note.classList.add('is-right');
+      // Into its own slot, directly under the options — appending to the host
+      // would put the feedback below the footnote, away from what it explains.
+      feedbackSlot.replaceChildren(note);
+      say(feedback);
+    });
+    options.append(button);
+  });
+
+  const feedbackSlot = document.createElement('div');
+
+  host.append(options, feedbackSlot);
+  host.append(textNode('p', 'sample-footnote', 'This one does not count. Press Begin when ready.'));
 }
 
 // --- Worked examples for the instruction screens ---------------------------
@@ -368,6 +538,14 @@ function glyphGroup(indices, className) {
   return group;
 }
 
+/** A text element with a class — the same shape the other UI modules use. */
+function textNode(tag, className, text) {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
+}
+
 function caption(text) {
   const node = document.createElement('p');
   node.className = 'demo-caption';
@@ -390,7 +568,10 @@ function beginSubtest() {
 function blankResponses(subtest) {
   switch (subtest.type) {
     case 'digit-span':
-      return { answers: subtest.sections.map((s) => s.trials.map(() => null)) };
+      return {
+        answers: subtest.sections.map((s) => s.trials.map(() => null)),
+        presentation: null,   // 'auditory' or 'visual', set at the first trial
+      };
     case 'coding':
       return { correct: 0, attempted: 0 };
     case 'symbol-search':
@@ -484,6 +665,7 @@ function presentChoiceItem(subtest, renderStem, renderOptions) {
 
   document.getElementById('item-hint').textContent = 'Choose one.';
   updateBar({ label: `Item ${state.itemIndex + 1} of ${subtest.items.length}` });
+  say(promptFor(subtest.id, item));
 }
 
 function renderVerbalStem(item) {
@@ -594,6 +776,7 @@ function presentPuzzleItem(subtest) {
 
   hint.textContent = '0 of 3 pieces chosen.';
   updateBar({ label: `Item ${state.itemIndex + 1} of ${subtest.items.length}`, timer: item.timeLimit });
+  say(promptFor(subtest.id, item));
   runCountdown(item.timeLimit, submit);
 }
 
@@ -682,6 +865,7 @@ function presentBlockItem(subtest) {
   document.getElementById('item-hint').textContent =
     item.speedBonus ? 'Finishing sooner scores higher on this size.' : 'Click tiles to match the target.';
   updateBar({ label: `Item ${state.itemIndex + 1} of ${subtest.items.length}`, timer: item.timeLimit });
+  say(promptFor(subtest.id, item));
   runCountdown(item.timeLimit, finishItem);
 }
 
@@ -721,17 +905,44 @@ function presentDigitSpan(subtest) {
   options.className = 'item-options options-text';
   updateBar({ label: `${section.label}, span ${trial.span}` });
 
-  // Show each digit for 800ms with a 300ms gap, then collect the response.
-  let index = 0;
-  const showNext = () => {
-    if (index >= trial.digits.length) { collect(); return; }
-    stage.replaceChildren(digitNode(trial.digits[index]));
-    index += 1;
-    later(() => { stage.replaceChildren(); later(showNext, 300); }, 800);
-  };
+  // Digit Span is a listening task. When the browser can speak, the digits are
+  // read aloud one per second and never shown — which is what the subtest is
+  // actually for. Only when there is no voice do they appear on screen, and
+  // that substitution is recorded, because seeing the digits makes the task
+  // materially easier than hearing them.
+  const spoken = speech.isSpeaking();
+  state.responses[subtest.id].presentation = spoken ? 'auditory' : 'visual';
+
+  const presentDigits = spoken ? presentAloud : presentOnScreen;
+
+  function presentAloud() {
+    stage.replaceChildren(listeningStage(trial.digits.length));
+    const dots = [...stage.querySelectorAll('.listening-dot')];
+
+    const schedule = digitSchedule(trial.digits);
+    const run = speech.speakSchedule(schedule, (_entry, index) => {
+      dots[index]?.classList.add('is-done');
+    }, { intervalMs: DIGIT_INTERVAL_MS });
+
+    state.speaking = run;
+    state.timers.push({ kind: 'listener', id: 0, remove: () => run.cancel() });
+    run.finished.then(() => { if (!stage.isConnected) return; collect(); });
+  }
+
+  function presentOnScreen() {
+    let index = 0;
+    const showNext = () => {
+      if (index >= trial.digits.length) { collect(); return; }
+      stage.replaceChildren(digitNode(trial.digits[index]));
+      index += 1;
+      later(() => { stage.replaceChildren(); later(showNext, 300); }, 800);
+    };
+    later(showNext, 700);
+  }
 
   const collect = () => {
     stage.replaceChildren(waitingNode('Now type the digits.'));
+    say('Now type them.', { remember: false });
 
     const form = document.createElement('form');
     form.className = 'span-entry';
@@ -758,7 +969,38 @@ function presentDigitSpan(subtest) {
     input.focus();
   };
 
-  later(showNext, 700);
+  // The examiner names the condition before each run, and this line may be
+  // repeated; the digits themselves may not.
+  say(promptFor('ds', { mode: section.mode }));
+  later(presentDigits, 900);
+}
+
+/** The listening stage: no digits, just a signal that something is being said. */
+function listeningStage(count) {
+  const wrap = document.createElement('div');
+  wrap.className = 'listening-stage';
+
+  const icon = document.createElement('div');
+  icon.className = 'listening-icon is-active';
+  icon.textContent = '🔊';
+  icon.setAttribute('role', 'img');
+  icon.setAttribute('aria-label', 'The examiner is reading the numbers aloud');
+
+  const note = document.createElement('p');
+  note.className = 'listening-note';
+  note.textContent = 'Listen. The numbers are read once and are not shown.';
+
+  const dots = document.createElement('div');
+  dots.className = 'listening-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < count; i += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'listening-dot';
+    dots.append(dot);
+  }
+
+  wrap.append(icon, note, dots);
+  return wrap;
 }
 
 function recordSpanTrial(subtest, sectionIndex, trialIndex, digits) {
@@ -830,6 +1072,7 @@ function presentPictureSpan(subtest) {
   document.getElementById('item-stimulus').append(stage);
 
   updateBar({ label: `Trial ${state.itemIndex + 1} of ${subtest.trials.length}` });
+  say(promptFor(subtest.id));
 
   later(() => {
     document.getElementById('item-prompt').textContent =
@@ -987,6 +1230,7 @@ function presentCoding(subtest) {
   input.focus();
   document.getElementById('item-hint').textContent = 'Type the matching digit. It advances automatically.';
   updateBar({ label: 'Timed block', timer: subtest.duration });
+  say(promptFor(subtest.id));
   runCountdown(subtest.duration, () => finishSpeeded());
 }
 
@@ -1069,6 +1313,7 @@ function presentSymbolSearch(subtest) {
   draw();
   document.getElementById('item-hint').textContent = 'Press Y or N.';
   updateBar({ label: 'Timed block', timer: subtest.duration });
+  say(promptFor(subtest.id));
   runCountdown(subtest.duration, () => finishSpeeded());
 }
 
@@ -1086,6 +1331,7 @@ function finish() {
   clearTimers();
   bar.hidden = true;
   screen('tpl-done');
+  say(EXAMINER_SCRIPT.closing);
 
   const { raw, scaled } = scoreSession(state.session, state.responses);
 
@@ -1098,6 +1344,10 @@ function finish() {
     completedAt: new Date().toISOString(),
     raw,
     scaled,
+    // Digit Span falls back to on-screen digits where no voice exists. That
+    // makes it easier than the listening task it models, so the report says so
+    // rather than presenting the score as comparable.
+    presentation: { ds: state.responses.ds?.presentation ?? null },
   };
 
   try {
@@ -1106,7 +1356,9 @@ function finish() {
     // Private browsing can refuse storage; the URL fallback below still works.
   }
 
-  const encoded = encodeURIComponent(btoa(JSON.stringify({ seed: payload.seed, raw, scaled })));
+  const encoded = encodeURIComponent(btoa(JSON.stringify({
+    seed: payload.seed, raw, scaled, presentation: payload.presentation,
+  })));
   window.location.href = `results.html?r=${encoded}`;
 }
 
