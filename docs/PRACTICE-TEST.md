@@ -151,6 +151,38 @@ Similarities and Vocabulary use a hand-written bank
 difficulty, with response options shuffled per session so position gives nothing
 away.
 
+### How much changes between sessions
+
+Eight of the ten subtests present different material every time. The two verbal
+subtests do not — they are fixed banks, and you will see the same questions on a
+retest.
+
+| Subtest | Items per session | Pool | Changes each session? |
+| --- | ---: | ---: | --- |
+| Similarities | 14 | **14 (fixed)** | No — the whole bank is used every time |
+| Vocabulary | 16 | **16 (fixed)** | No — the whole bank is used every time |
+| Matrix Reasoning | 14 | ~150,000+ generated | Yes |
+| Figure Weights | 14 | ~6,300 / ~550,000 generated | Yes |
+| Block Design | 8 | ~1,000 / ~10,000,000 generated | Yes |
+| Visual Puzzles | 10 | 42 (3×3) / ~1,200 (4×4) | Yes |
+| Digit Span | 44 trials | effectively unlimited | Yes |
+| Picture Span | 10 trials | ~2,700 observed | Yes |
+| Coding | 120s | 99,960,000 keys | Yes |
+| Symbol Search | 120s | ~42,000 rows | Yes |
+
+Pool figures are measured, not asserted: distinct items are counted over tens of
+thousands of generations and extrapolated with a Chao1 estimator. Where two
+numbers are given they are the easy and hard variants of the task.
+
+Items are also **deduplicated within a subtest**, so no session shows the same
+puzzle twice. This matters most for Visual Puzzles: a 3×3 grid can only be tiled
+ten ways if every piece must have three cells, and before the piece-size floor
+was scaled to the grid, more than half of all sessions repeated a puzzle. A
+second sighting measures memory rather than reasoning.
+
+The practical consequence is the one already noted above: **the verbal subtests
+do not survive a retest**. Everything else does.
+
 ## Scoring
 
 **Raw scores** follow the conventions of the formats being modelled:

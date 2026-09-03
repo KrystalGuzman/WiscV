@@ -39,6 +39,41 @@ export const TIME_LIMITS = Object.freeze({
 });
 
 /**
+ * Build `count` items, rejecting any that repeats one already built.
+ *
+ * Pool sizes differ enormously between generators — Matrix Reasoning has
+ * millions of distinct forms, a 3x3 visual puzzle only dozens — so without this
+ * the small pools show the same item twice in one sitting. That is obvious to
+ * the examinee and unfair to score, since the second sighting is a memory test.
+ *
+ * After `attempts` it accepts the duplicate rather than looping: a repeated
+ * item is a far smaller problem than a session that never finishes building.
+ */
+function distinctItems(count, make, signature, attempts = 60) {
+  const items = [];
+  const seen = new Set();
+
+  for (let index = 0; index < count; index += 1) {
+    let item = make(index);
+    for (let tries = 0; tries < attempts && seen.has(signature(item)); tries += 1) {
+      item = make(index);
+    }
+    seen.add(signature(item));
+    items.push(item);
+  }
+  return items;
+}
+
+/** Content fingerprints, ignoring option order — that is shuffled per item. */
+const SIGNATURES = {
+  matrix: (item) => JSON.stringify(item.matrix),
+  figureWeights: (item) => JSON.stringify(item.premises) + JSON.stringify(item.question),
+  visualPuzzle: (item) =>
+    JSON.stringify(item.answerIndices.map((i) => item.options[i]).sort()),
+  blockDesign: (item) => JSON.stringify(item.grid),
+};
+
+/**
  * Build a full practice test.
  * @param {number} [seed] omit for a fresh random session
  */
@@ -79,30 +114,30 @@ export function buildSession(seed = randomSeed()) {
       {
         id: 'vp', type: 'visual-puzzle', name: 'Visual Puzzles', domain: 'vs',
         prompt: 'Choose the three pieces that fit together to make the shape.',
-        items: Array.from({ length: 10 }, (_, i) => ({
+        items: distinctItems(10, (i) => ({
           index: i,
           timeLimit: TIME_LIMITS.vp,
           ...generateVisualPuzzleItem(rng, i < 4 ? 3 : 4),
-        })),
+        }), SIGNATURES.visualPuzzle),
         discontinue: DISCONTINUE_RULES.vp,
       },
       {
         id: 'mr', type: 'matrix', name: 'Matrix Reasoning', domain: 'fr',
         prompt: 'Which option completes the pattern?',
-        items: Array.from({ length: 14 }, (_, i) => ({
+        items: distinctItems(14, (i) => ({
           index: i,
           // Difficulty is the number of attributes varying at once.
           ...generateMatrixItem(rng, i < 4 ? 1 : i < 9 ? 2 : 3),
-        })),
+        }), SIGNATURES.matrix),
         discontinue: DISCONTINUE_RULES.mr,
       },
       {
         id: 'fw', type: 'figure-weights', name: 'Figure Weights', domain: 'fr',
         prompt: 'Which option balances the last scale?',
-        items: Array.from({ length: 14 }, (_, i) => ({
+        items: distinctItems(14, (i) => ({
           index: i,
           ...generateFigureWeightsItem(rng, { chained: i >= 5 }),
-        })),
+        }), SIGNATURES.figureWeights),
         discontinue: DISCONTINUE_RULES.fw,
       },
       {
@@ -136,13 +171,13 @@ function buildBlockDesignItems(rng) {
   // Three 2x2 items to establish the task, then five 3x3 items where the
   // speed bonus produces most of the variance.
   const sizes = [2, 2, 2, 3, 3, 3, 3, 3];
-  return sizes.map((size, i) => ({
+  return distinctItems(sizes.length, (i) => ({
     index: i,
-    timeLimit: size === 2 ? TIME_LIMITS.bd2 : TIME_LIMITS.bd3,
+    timeLimit: sizes[i] === 2 ? TIME_LIMITS.bd2 : TIME_LIMITS.bd3,
     baseCredit: 4,
-    speedBonus: size === 3,
-    ...generateBlockDesignItem(rng, size),
-  }));
+    speedBonus: sizes[i] === 3,
+    ...generateBlockDesignItem(rng, sizes[i]),
+  }), SIGNATURES.blockDesign);
 }
 
 function buildDigitSpanSections(rng) {

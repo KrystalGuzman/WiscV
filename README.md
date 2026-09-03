@@ -149,9 +149,12 @@ Ten tasks, two per area, in the formats the WISC-V uses:
 | Working Memory | Digit Span, Picture Span |
 | Processing Speed | Coding, Symbol Search |
 
-Four of them are **procedurally generated** from a seeded RNG, so no two
-sessions are alike and any session replays exactly from its seed
-(`exam.html?seed=12345`). Generated items verify themselves: Figure Weights
+Eight of the ten present different material every session; the two verbal
+subtests are fixed banks of 14 and 16 items and repeat on a retest. Four
+subtests are **procedurally generated** from a seeded RNG, with measured pools
+ranging from 42 distinct 3×3 visual puzzles to millions of matrix forms, and any
+session replays exactly from its seed (`exam.html?seed=12345`). Items are
+deduplicated within a subtest, so no sitting shows the same puzzle twice. Generated items verify themselves: Figure Weights
 solves its own algebra, Visual Puzzles checks all twenty possible triples and
 regenerates unless exactly one tiles the square, and Matrix Reasoning rejects
 any item whose options are not all distinct.

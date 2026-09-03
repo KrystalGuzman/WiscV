@@ -354,6 +354,14 @@ export function generateVisualPuzzleItem(rng, size = 4) {
   throw new Error('generateVisualPuzzleItem: could not build a valid item');
 }
 
+/**
+ * The smallest acceptable piece: about a fifth of the shape, never below two
+ * cells. Keeps 4x4 puzzles substantial while letting 3x3 ones exist at all.
+ */
+function minimumPiece(size) {
+  return Math.max(2, Math.floor((size * size) / 5));
+}
+
 /** Grow three connected regions from random seeds until every cell is claimed. */
 function partitionSquare(rng, size) {
   const total = size * size;
@@ -394,8 +402,10 @@ function partitionSquare(rng, size) {
   const pieces = [0, 1, 2].map((piece) =>
     owner.map((o, cell) => (o === piece ? cell : -1)).filter((c) => c >= 0));
 
-  // Reject slivers: a one-cell piece makes the item trivial.
-  if (pieces.some((p) => p.length < 3)) return null;
+  // Reject slivers, but scale the floor to the grid. A 3x3 holds nine cells, so
+  // demanding three per piece forces all three to be trominoes — of which there
+  // are only ten tilings in total, far too few to draw four items from.
+  if (pieces.some((p) => p.length < minimumPiece(size))) return null;
   return pieces;
 }
 

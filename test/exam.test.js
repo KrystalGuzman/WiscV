@@ -323,6 +323,44 @@ describe('session construction', () => {
     }
   });
 
+  test('never presents the same item twice within one subtest', () => {
+    // Regression: a 3x3 visual puzzle can only be tiled ten ways once every
+    // piece must have three cells, so more than half of all sessions showed the
+    // same puzzle twice. A second sighting tests memory, not reasoning, and is
+    // obvious to the examinee.
+    const fingerprint = (subtest, item) => {
+      switch (subtest.type) {
+        case 'matrix': return JSON.stringify(item.matrix);
+        case 'figure-weights': return JSON.stringify(item.premises) + JSON.stringify(item.question);
+        case 'visual-puzzle': return JSON.stringify(item.answerIndices.map((i) => item.options[i]).sort());
+        case 'block-design': return JSON.stringify(item.grid);
+        default: return null;
+      }
+    };
+
+    for (let seed = 0; seed < 120; seed += 1) {
+      for (const subtest of buildSession(seed).subtests) {
+        if (!subtest.items) continue;
+        const marks = subtest.items.map((item) => fingerprint(subtest, item)).filter(Boolean);
+        if (marks.length === 0) continue;
+        assert.equal(new Set(marks).size, marks.length,
+          `seed ${seed}: ${subtest.id} repeats an item within the session`);
+      }
+    }
+  });
+
+  test('the smallest generated pool still exceeds what a session draws from it', () => {
+    // Visual Puzzles draws four 3x3 items. If that pool were not comfortably
+    // larger, deduplication would be exhausting its attempts every session.
+    const seen = new Set();
+    for (let seed = 0; seed < 400; seed += 1) {
+      const item = generateVisualPuzzleItem(createRng(seed), 3);
+      seen.add(JSON.stringify(item.answerIndices.map((i) => item.options[i]).sort()));
+    }
+    assert.ok(seen.size > 20,
+      `only ${seen.size} distinct 3x3 puzzles exist; a session draws 4 of them`);
+  });
+
   test('reports how many units the test presents', () => {
     assert.ok(sessionLength(buildSession(1)) > 100);
   });
