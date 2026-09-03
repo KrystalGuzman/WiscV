@@ -15,7 +15,10 @@ import {
   generateVisualPuzzleItem, generateCodingKey, generateCodingSequence,
   generateSymbolSearchRow,
 } from './generators.js';
-import { SIMILARITIES_ITEMS, VOCABULARY_ITEMS, PICTURE_SYMBOLS } from './verbal-items.js';
+import {
+  SIMILARITIES_ITEMS, VOCABULARY_ITEMS, PICTURE_SYMBOLS,
+  SIMILARITIES_TIER_COUNT, VOCABULARY_TIER_COUNT, drawTieredItems,
+} from './verbal-items.js';
 import { rawToScaledScore } from './reference.js';
 import { SUBTESTS, getSubtest } from '../core/model.js';
 
@@ -87,22 +90,27 @@ export function buildSession(seed = randomSeed()) {
       {
         id: 'si', type: 'verbal-choice', name: 'Similarities', domain: 'vc',
         prompt: 'In what way are these two things alike?',
-        items: SIMILARITIES_ITEMS.map((item, i) => ({
-          index: i,
-          stem: item.stem,
-          // Options are shuffled per session so position gives nothing away.
-          options: rng.shuffle(item.responses),
-        })),
+        // One item per difficulty tier: the same ramp every session, drawn from
+        // a bank far larger than a single sitting uses, so a retest asks
+        // different questions.
+        items: drawTieredItems(SIMILARITIES_ITEMS, SIMILARITIES_TIER_COUNT, rng)
+          .map((item, i) => ({
+            index: i,
+            stem: item.stem,
+            // Options are shuffled per session so position gives nothing away.
+            options: rng.shuffle(item.responses),
+          })),
         discontinue: DISCONTINUE_RULES.si,
       },
       {
         id: 'vo', type: 'verbal-choice', name: 'Vocabulary', domain: 'vc',
         prompt: 'What does this word mean?',
-        items: VOCABULARY_ITEMS.map((item, i) => ({
-          index: i,
-          stem: item.word,
-          options: rng.shuffle(item.responses),
-        })),
+        items: drawTieredItems(VOCABULARY_ITEMS, VOCABULARY_TIER_COUNT, rng)
+          .map((item, i) => ({
+            index: i,
+            stem: item.word,
+            options: rng.shuffle(item.responses),
+          })),
         discontinue: DISCONTINUE_RULES.vo,
       },
       {

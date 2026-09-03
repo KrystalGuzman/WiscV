@@ -13,8 +13,12 @@ import {
 import {
   REFERENCE_DISTRIBUTIONS, rawToScaledScore, scaledToRawScore, scaledCeilings,
 } from '../src/exam/reference.js';
-import { SIMILARITIES_ITEMS, VOCABULARY_ITEMS } from '../src/exam/verbal-items.js';
+import {
+  SIMILARITIES_ITEMS, VOCABULARY_ITEMS,
+  SIMILARITIES_TIER_COUNT, VOCABULARY_TIER_COUNT, drawTieredItems,
+} from '../src/exam/verbal-items.js';
 import { SUBTESTS } from '../src/core/model.js';
+import { proseProblems, articleProblems } from './helpers/prose.js';
 
 describe('seeded rng', () => {
   test('is reproducible for a given seed and differs across seeds', () => {
@@ -247,22 +251,78 @@ describe('verbal item banks', () => {
     }
   });
 
+  test('every item in both banks is uniquely identified', () => {
+    // A repeated stem or word would let one sitting ask the same question
+    // twice, and would waste a slot in its tier.
+    const stems = SIMILARITIES_ITEMS.map((item) => item.stem);
+    assert.equal(new Set(stems).size, stems.length, 'duplicate Similarities stem');
+
+    const pairs = SIMILARITIES_ITEMS.map((item) => [...item.pair].sort().join('|'));
+    assert.equal(new Set(pairs).size, pairs.length, 'duplicate Similarities pair');
+
+    const words = VOCABULARY_ITEMS.map((item) => item.word);
+    assert.equal(new Set(words).size, words.length, 'duplicate Vocabulary word');
+  });
+
+  test('every response is written prose, and options within an item differ', () => {
+    for (const [name, bank] of [['Similarities', SIMILARITIES_ITEMS], ['Vocabulary', VOCABULARY_ITEMS]]) {
+      bank.forEach((item, i) => {
+        const texts = item.responses.map((r) => r.text);
+        assert.equal(new Set(texts).size, 4, `${name} ${i}: repeated option text`);
+        for (const text of texts) {
+          assert.ok(/[.?!]$/.test(text), `${name} ${i}: unpunctuated option "${text}"`);
+          assert.deepEqual(articleProblems(text), [], `${name} ${i}: "${text}"`);
+        }
+      });
+    }
+  });
+
+  test('the full-credit definition is more specific than the partial one', () => {
+    // The distinction the subtest actually measures. If the 2-point answer is
+    // not more precise than the 1-point answer, the item does not discriminate.
+    for (const [i, item] of VOCABULARY_ITEMS.entries()) {
+      const two = item.responses.find((r) => r.credit === 2).text;
+      const one = item.responses.find((r) => r.credit === 1).text;
+      assert.ok(two.length > one.length,
+        `Vocabulary ${i} (${item.word}): "${two}" is not more specific than "${one}"`);
+    }
+  });
+
   test('every Similarities item carries a grammatical authored stem', () => {
     // The stem is authored per item rather than templated: several pairs are
     // mass nouns that take no article ("How are anger and joy alike?").
     for (const [i, item] of SIMILARITIES_ITEMS.entries()) {
       assert.ok(item.stem, `item ${i} has no stem`);
       assert.ok(item.stem.endsWith('alike?'), `item ${i}: unexpected stem shape`);
-      assert.ok(!/\ba (?=[aeiou])/i.test(item.stem), `item ${i}: "a" before a vowel in "${item.stem}"`);
+      assert.deepEqual(articleProblems(item.stem), [], `item ${i}: "${item.stem}"`);
       for (const word of item.pair) {
         assert.ok(item.stem.includes(word), `item ${i}: stem omits "${word}"`);
       }
     }
   });
 
-  test('bank sizes match the declared maximum raw scores', () => {
-    assert.equal(SIMILARITIES_ITEMS.length * 2, REFERENCE_DISTRIBUTIONS.si.maxRaw);
-    assert.equal(VOCABULARY_ITEMS.length * 2, REFERENCE_DISTRIBUTIONS.vo.maxRaw);
+  test('the number of tiers matches the declared maximum raw scores', () => {
+    // One item is drawn per tier, so the tier count -- not the bank size --
+    // fixes how many items a session presents, and therefore its score range.
+    assert.equal(SIMILARITIES_TIER_COUNT * 2, REFERENCE_DISTRIBUTIONS.si.maxRaw);
+    assert.equal(VOCABULARY_TIER_COUNT * 2, REFERENCE_DISTRIBUTIONS.vo.maxRaw);
+  });
+
+  test('each bank holds well over a hundred items, several per tier', () => {
+    // The point of the banks being large: a session uses a small fraction, so
+    // a retest asks different questions instead of measuring recall.
+    assert.ok(SIMILARITIES_ITEMS.length >= 100, `only ${SIMILARITIES_ITEMS.length} Similarities items`);
+    assert.ok(VOCABULARY_ITEMS.length >= 100, `only ${VOCABULARY_ITEMS.length} Vocabulary items`);
+
+    for (const [name, items, tiers] of [
+      ['Similarities', SIMILARITIES_ITEMS, SIMILARITIES_TIER_COUNT],
+      ['Vocabulary', VOCABULARY_ITEMS, VOCABULARY_TIER_COUNT],
+    ]) {
+      for (let tier = 1; tier <= tiers; tier += 1) {
+        const inTier = items.filter((item) => item.tier === tier).length;
+        assert.ok(inTier >= 5, `${name} tier ${tier} holds only ${inTier} items`);
+      }
+    }
   });
 });
 
@@ -280,6 +340,44 @@ describe('session construction', () => {
     const ids = session.subtests.map((s) => s.id);
     assert.equal(ids.length, 10);
     assert.deepEqual([...ids].sort(), SUBTESTS.map((s) => s.id).sort());
+  });
+
+  test('draws one verbal item per tier, in ascending difficulty', () => {
+    const rng = createRng(5);
+    const drawn = drawTieredItems(SIMILARITIES_ITEMS, SIMILARITIES_TIER_COUNT, rng);
+    assert.equal(drawn.length, SIMILARITIES_TIER_COUNT);
+    assert.deepEqual(drawn.map((item) => item.tier),
+      Array.from({ length: SIMILARITIES_TIER_COUNT }, (_, i) => i + 1));
+  });
+
+  test('different sessions ask different verbal questions', () => {
+    // The whole point of the large banks. Two sittings should overlap only by
+    // chance, not by construction.
+    const stemsFor = (seed) => {
+      const session = buildSession(seed);
+      return {
+        si: session.subtests.find((s) => s.id === 'si').items.map((i) => i.stem),
+        vo: session.subtests.find((s) => s.id === 'vo').items.map((i) => i.stem),
+      };
+    };
+
+    const a = stemsFor(1);
+    const b = stemsFor(2);
+    for (const id of ['si', 'vo']) {
+      const shared = a[id].filter((stem) => b[id].includes(stem)).length;
+      assert.ok(shared < a[id].length * 0.6,
+        `${id}: ${shared} of ${a[id].length} items repeat between two sessions`);
+    }
+  });
+
+  test('a session never asks the same verbal question twice', () => {
+    for (let seed = 0; seed < 60; seed += 1) {
+      const session = buildSession(seed);
+      for (const id of ['si', 'vo']) {
+        const stems = session.subtests.find((s) => s.id === id).items.map((i) => i.stem);
+        assert.equal(new Set(stems).size, stems.length, `seed ${seed}: ${id} repeats an item`);
+      }
+    }
   });
 
   test('shuffles verbal response options so position carries no information', () => {

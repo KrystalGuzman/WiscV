@@ -11,19 +11,10 @@ import {
   walkCoding, walkSymbolSearch,
 } from '../src/exam/walkthrough.js';
 import { SIMILARITIES_ITEMS, VOCABULARY_ITEMS } from '../src/exam/verbal-items.js';
+import { proseProblems as sharedProseProblems } from './helpers/prose.js';
 
-/** Faults that make a step read as broken rather than merely terse. */
-function proseProblems(text) {
-  const problems = [];
-  if (!text || text.length < 25) problems.push('too short');
-  if (/\d{6,}/.test(text)) problems.push('runaway number');
-  if (/\ba [aeiou]/i.test(text)) problems.push('"a" before a vowel');
-  if (/\ban [^aeiou]/i.test(text)) problems.push('"an" before a consonant');
-  if (/\bundefined\b|\bNaN\b|\bnull\b/.test(text)) problems.push('unrendered value');
-  if (/\s{2,}/.test(text)) problems.push('double space');
-  if (/\.\./.test(text)) problems.push('double period');
-  return problems;
-}
+const proseProblems = (text) => sharedProseProblems(text, { minLength: 25 });
+
 
 function checkShape(walkthrough, label) {
   assert.ok(Array.isArray(walkthrough.steps), `${label}: steps must be an array`);

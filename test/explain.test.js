@@ -11,20 +11,10 @@ import {
   explainSymbolSearch, asFraction, letterFor,
 } from '../src/exam/explain.js';
 import { SIMILARITIES_ITEMS, VOCABULARY_ITEMS } from '../src/exam/verbal-items.js';
+import { proseProblems as sharedProseProblems } from './helpers/prose.js';
 
-/** Faults that make an explanation read as broken rather than merely terse. */
-function proseProblems(text) {
-  const problems = [];
-  if (!text || text.length < 20) problems.push('too short');
-  if (/\d{6,}/.test(text)) problems.push('runaway number');
-  if (/\ba [aeiou]/i.test(text)) problems.push('"a" before a vowel');
-  if (/\ban [^aeiou]/i.test(text)) problems.push('"an" before a consonant');
-  if (/\b1 \w+ balance\b/.test(text)) problems.push('subject-verb disagreement');
-  if (/\bundefined\b|\bNaN\b|\bnull\b/.test(text)) problems.push('unrendered value');
-  if (/\s{2,}/.test(text)) problems.push('double space');
-  if (/\.\./.test(text)) problems.push('double period');
-  return problems;
-}
+const proseProblems = (text) => sharedProseProblems(text, { minLength: 20 });
+
 
 describe('asFraction', () => {
   test('reduces to lowest terms and drops a unit denominator', () => {

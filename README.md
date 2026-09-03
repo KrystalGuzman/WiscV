@@ -149,12 +149,15 @@ Ten tasks, two per area, in the formats the WISC-V uses:
 | Working Memory | Digit Span, Picture Span |
 | Processing Speed | Coding, Symbol Search |
 
-Eight of the ten present different material every session; the two verbal
-subtests are fixed banks of 14 and 16 items and repeat on a retest. Four
-subtests are **procedurally generated** from a seeded RNG, with measured pools
-ranging from 42 distinct 3×3 visual puzzles to millions of matrix forms, and any
-session replays exactly from its seed (`exam.html?seed=12345`). Items are
-deduplicated within a subtest, so no sitting shows the same puzzle twice. Generated items verify themselves: Figure Weights
+**All ten present different material every session.** Four subtests are
+procedurally generated from a seeded RNG, with measured pools ranging from 42
+distinct 3×3 visual puzzles to millions of matrix forms. The two verbal subtests
+draw from hand-written banks of 112 items each, organised into difficulty tiers
+with one item taken per tier — so the ramp and the score range stay fixed while
+the questions change, and a retest repeats only about 12% of items rather than
+100%. Any session replays exactly from its seed (`exam.html?seed=12345`), and
+items are deduplicated within a subtest so no sitting shows the same puzzle
+twice. Generated items verify themselves: Figure Weights
 solves its own algebra, Visual Puzzles checks all twenty possible triples and
 regenerates unless exactly one tiles the square, and Matrix Reasoning rejects
 any item whose options are not all distinct.
@@ -209,10 +212,15 @@ at the answer keep that item out of your accuracy figure; strategy-only ones
 cost nothing, which the code tracks with a `revealsAnswer` flag rather than
 leaving to the UI to guess.
 
+The verbal drills are tier-aware: Adaptive starts at the easiest tier and climbs
+a tier on a full-credit answer, dropping one otherwise, so a drill settles near
+the edge of what you can do instead of opening on the hardest words in the bank.
+Easier and Harder bands are selectable.
+
 Two honest caveats, both stated on the page: practising a task makes you better
 at *that task*, and evidence for transfer to general ability is weak at best;
-and practising will inflate a later score on the practice test, since the
-formats are identical and the verbal banks are finite. Take the test before you
+and practising will still inflate a later score, since the item formats are
+identical even though the items themselves change. Take the test before you
 drill, not after.
 
 ## Layout
@@ -232,7 +240,7 @@ src/core/norms.js       optional user-supplied norms tables
 
 src/exam/rng.js         seeded random numbers
 src/exam/generators.js  procedural item generation, with self-verification
-src/exam/verbal-items.js  hand-written verbal item banks
+src/exam/verbal-items.js  hand-written verbal banks: 112 items each, in difficulty tiers
 src/exam/administration.js  the examiner's spoken script, samples, repetition rules
 src/exam/reference.js   the estimated reference distribution (the "not norms" file)
 src/exam/session.js     test construction, discontinue rules, raw scoring

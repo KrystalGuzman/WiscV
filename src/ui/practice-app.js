@@ -19,7 +19,10 @@ import {
   generateVisualPuzzleItem, generateCodingKey, generateSymbolSearchRow,
   TILE_STATES, GLYPHS,
 } from '../exam/generators.js';
-import { SIMILARITIES_ITEMS, VOCABULARY_ITEMS, PICTURE_SYMBOLS } from '../exam/verbal-items.js';
+import {
+  SIMILARITIES_ITEMS, VOCABULARY_ITEMS, PICTURE_SYMBOLS,
+  SIMILARITIES_TIER_COUNT, VOCABULARY_TIER_COUNT,
+} from '../exam/verbal-items.js';
 import {
   explainMatrix, explainFigureWeights, explainVerbal, explainVisualPuzzle,
   explainBlockDesign, explainDigitSpan, explainPictureSpan, explainCoding,
@@ -47,13 +50,24 @@ const $ = (id) => document.getElementById(id);
  * order; the first is the default.
  */
 const TASKS = {
+  // The verbal banks run from everyday objects to abstractions, so drawing
+  // uniformly from all hundred-odd items would open on the hardest words and
+  // teach nothing. Adaptive starts easy and follows how you are doing.
   si: {
     what: 'Say what two things have in common.',
-    levels: [{ id: 'all', label: 'Mixed' }],
+    levels: [
+      { id: 'adaptive', label: 'Adaptive' },
+      { id: 'easy', label: 'Easier' },
+      { id: 'hard', label: 'Harder' },
+    ],
   },
   vo: {
     what: 'Choose the most precise definition of a word.',
-    levels: [{ id: 'all', label: 'Mixed' }],
+    levels: [
+      { id: 'adaptive', label: 'Adaptive' },
+      { id: 'easy', label: 'Easier' },
+      { id: 'hard', label: 'Harder' },
+    ],
   },
   bd: {
     what: 'Rebuild a tile pattern from its parts.',
@@ -117,6 +131,10 @@ const state = {
   // Digit and picture span adapt: the span grows on success and shrinks on
   // failure, which is what makes drilling them worthwhile.
   span: 3,
+  // The verbal tiers adapt the same way, and `asked` keeps a drill from
+  // circling the same handful of items within one sitting.
+  tier: 1,
+  asked: new Set(),
   codingKey: null,
 };
 
@@ -217,6 +235,8 @@ function startTask(taskId, level) {
   state.bestStreak = 0;
   state.queue = [];
   state.span = 3;
+  state.tier = 1;
+  state.asked = new Set();
   state.helped = 0;
   state.codingKey = generateCodingKey(state.rng);
 
@@ -233,7 +253,12 @@ function startTask(taskId, level) {
   }
   select.value = state.level;
   select.disabled = TASKS[taskId].levels.length < 2;
-  select.onchange = () => { state.level = select.value; state.span = 3; nextItem(); };
+  select.onchange = () => {
+    state.level = select.value;
+    state.span = 3;
+    state.tier = 1;
+    nextItem();
+  };
 
   $('btn-back').onclick = showMenu;
   nextItem();
@@ -470,16 +495,33 @@ const PRESENTERS = {
   ss: presentSymbolSearch,
 };
 
-/** Draw the next item from a finite bank, reshuffling when it runs out. */
-function drawFromBank(bank) {
-  if (state.queue.length === 0) {
-    state.queue = state.rng.shuffle([...bank.keys()]);
-  }
-  return bank[state.queue.pop()];
+/**
+ * Draw a verbal item at the difficulty the current level calls for, preferring
+ * one not yet asked in this sitting.
+ *
+ * Adaptive climbs a tier on a full-credit answer and drops one otherwise, so a
+ * drill settles near the edge of what the examinee can do rather than opening
+ * on the hardest words in the bank.
+ */
+function drawVerbalItem(bank, tierCount) {
+  const band = {
+    easy: [1, Math.ceil(tierCount / 3)],
+    hard: [Math.ceil((2 * tierCount) / 3), tierCount],
+    adaptive: [state.tier, state.tier],
+  }[state.level] ?? [1, tierCount];
+
+  const inBand = bank.filter((item) => item.tier >= band[0] && item.tier <= band[1]);
+  const pool = inBand.length > 0 ? inBand : bank;
+
+  const fresh = pool.filter((item) => !state.asked.has(item.stem ?? item.word));
+  const item = state.rng.pick(fresh.length > 0 ? fresh : pool);
+  state.asked.add(item.stem ?? item.word);
+  return item;
 }
 
 function presentVerbal(taskId, bank, kind, prompt) {
-  const source = drawFromBank(bank);
+  const tierCount = taskId === 'si' ? SIMILARITIES_TIER_COUNT : VOCABULARY_TIER_COUNT;
+  const source = drawVerbalItem(bank, tierCount);
   const item = { ...source, options: state.rng.shuffle(source.responses) };
   state.item = item;
 
@@ -509,12 +551,16 @@ function presentVerbal(taskId, bank, kind, prompt) {
     button.addEventListener('click', () => {
       lockOptions(container, answerIndex, index);
       const outcome = option.credit === 2 ? 'correct' : option.credit === 1 ? 'partial' : 'wrong';
+      // Follow the examinee up and down the difficulty ramp.
+      state.tier = Math.min(tierCount, Math.max(1, state.tier + (option.credit === 2 ? 1 : -1)));
       reveal(outcome, explainVerbal(item, index, kind));
     });
     container.append(button);
   });
 
-  $('drill-hint').textContent = 'Choose one.';
+  $('drill-hint').textContent = state.level === 'adaptive'
+    ? `Choose one. Difficulty ${source.tier} of ${tierCount} — it rises when you get one right.`
+    : 'Choose one.';
 }
 
 function presentMatrix() {

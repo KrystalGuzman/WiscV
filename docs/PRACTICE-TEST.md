@@ -159,8 +159,8 @@ retest.
 
 | Subtest | Items per session | Pool | Changes each session? |
 | --- | ---: | ---: | --- |
-| Similarities | 14 | **14 (fixed)** | No — the whole bank is used every time |
-| Vocabulary | 16 | **16 (fixed)** | No — the whole bank is used every time |
+| Similarities | 14 | 112 banked (14 tiers × 8) | Yes |
+| Vocabulary | 16 | 112 banked (16 tiers × 7) | Yes |
 | Matrix Reasoning | 14 | ~150,000+ generated | Yes |
 | Figure Weights | 14 | ~6,300 / ~550,000 generated | Yes |
 | Block Design | 8 | ~1,000 / ~10,000,000 generated | Yes |
@@ -180,8 +180,36 @@ ten ways if every piece must have three cells, and before the piece-size floor
 was scaled to the grid, more than half of all sessions repeated a puzzle. A
 second sighting measures memory rather than reasoning.
 
-The practical consequence is the one already noted above: **the verbal subtests
-do not survive a retest**. Everything else does.
+### How the verbal banks are sampled
+
+The verbal banks used to hold 14 and 16 items and present *all* of them every
+session, so a retest asked exactly the same questions and the verbal scores
+measured recall of the previous sitting as much as ability.
+
+Each bank now holds 112 items grouped into difficulty tiers — one tier per
+position in the administered sequence. A session draws **one item from each
+tier**, which keeps the difficulty ramp and the number of items identical (so
+raw score ranges and the reference distribution are untouched) while drawing
+different items each time.
+
+Drawing at random from the whole bank instead would have varied the average
+difficulty of a sitting, shifting scores against a reference distribution that
+assumes a fixed ramp. One per tier holds the ramp exactly.
+
+Measured over 500 pairs of consecutive sittings:
+
+| | Before | Now |
+| --- | ---: | ---: |
+| Similarities items repeated on a retest | 14 of 14 (100%) | 1.74 of 14 (12%) |
+| Vocabulary items repeated on a retest | 16 of 16 (100%) | 2.26 of 16 (14%) |
+
+Those overlap figures match what chance predicts for the tier sizes (1.75 and
+2.29), which is the check that the sampling is not favouring particular items.
+Seeing every item in a bank at least once takes about 28 sittings.
+
+This does not make the test immune to practice — the *formats* are unchanged,
+and knowing what a task asks is itself worth something. But the verbal
+subtests are no longer a memory test on a retest, which they were.
 
 ## Scoring
 
