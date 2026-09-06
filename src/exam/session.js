@@ -17,8 +17,11 @@ import {
 } from './generators.js';
 import {
   SIMILARITIES_ITEMS, VOCABULARY_ITEMS, PICTURE_SYMBOLS,
-  SIMILARITIES_TIER_COUNT, VOCABULARY_TIER_COUNT, drawTieredItems,
+  SIMILARITIES_TIER_COUNT, VOCABULARY_TIER_COUNT, drawTieredItems, spacedTiers,
 } from './verbal-items.js';
+import {
+  SHORT_FORM_SUBTESTS, SHORT_FORM_PLAN, shortFormRawToScaled,
+} from './short-form.js';
 import { rawToScaledScore } from './reference.js';
 import { SUBTESTS, getSubtest } from '../core/model.js';
 
@@ -57,9 +60,9 @@ function distinctItems(count, make, signature, attempts = 60) {
   const seen = new Set();
 
   for (let index = 0; index < count; index += 1) {
-    let item = make(index);
+    let item = make(index, count);
     for (let tries = 0; tries < attempts && seen.has(signature(item)); tries += 1) {
-      item = make(index);
+      item = make(index, count);
     }
     seen.add(signature(item));
     items.push(item);
@@ -80,13 +83,16 @@ const SIGNATURES = {
  * Build a full practice test.
  * @param {number} [seed] omit for a fresh random session
  */
-export function buildSession(seed = randomSeed()) {
+export function buildSession(seed = randomSeed(), { form = 'full' } = {}) {
   const rng = createRng(seed);
+  const short = form === 'short';
 
-  return {
-    seed,
-    createdAt: new Date().toISOString(),
-    subtests: [
+  // How much of each subtest this form administers. The short form runs one
+  // subtest per area with fewer items; everything else about construction,
+  // administration and scoring is shared.
+  const plan = (id, fullValue) => (short ? SHORT_FORM_PLAN[id]?.items ?? fullValue : fullValue);
+
+  const all = [
       {
         id: 'si', type: 'verbal-choice', name: 'Similarities', domain: 'vc',
         prompt: 'In what way are these two things alike?',
@@ -105,18 +111,21 @@ export function buildSession(seed = randomSeed()) {
       {
         id: 'vo', type: 'verbal-choice', name: 'Vocabulary', domain: 'vc',
         prompt: 'What does this word mean?',
-        items: drawTieredItems(VOCABULARY_ITEMS, VOCABULARY_TIER_COUNT, rng)
-          .map((item, i) => ({
-            index: i,
-            stem: item.word,
-            options: rng.shuffle(item.responses),
-          })),
+        items: drawTieredItems(VOCABULARY_ITEMS, VOCABULARY_TIER_COUNT, rng, {
+          // The short form takes evenly spaced tiers rather than the first few,
+          // so it still spans easy to hard with half the items.
+          tiers: short ? spacedTiers(VOCABULARY_TIER_COUNT, plan('vo', VOCABULARY_TIER_COUNT)) : null,
+        }).map((item, i) => ({
+          index: i,
+          stem: item.word,
+          options: rng.shuffle(item.responses),
+        })),
         discontinue: DISCONTINUE_RULES.vo,
       },
       {
         id: 'bd', type: 'block-design', name: 'Block Design', domain: 'vs',
         prompt: 'Rebuild the pattern by clicking the tiles to rotate them.',
-        items: buildBlockDesignItems(rng),
+        items: buildBlockDesignItems(rng, short),
         discontinue: DISCONTINUE_RULES.bd,
       },
       {
@@ -132,10 +141,11 @@ export function buildSession(seed = randomSeed()) {
       {
         id: 'mr', type: 'matrix', name: 'Matrix Reasoning', domain: 'fr',
         prompt: 'Which option completes the pattern?',
-        items: distinctItems(14, (i) => ({
+        items: distinctItems(plan('mr', 14), (i, count) => ({
           index: i,
-          // Difficulty is the number of attributes varying at once.
-          ...generateMatrixItem(rng, i < 4 ? 1 : i < 9 ? 2 : 3),
+          // Difficulty is the number of attributes varying at once, kept in the
+          // same proportion however many items the form presents.
+          ...generateMatrixItem(rng, i < count * 0.29 ? 1 : i < count * 0.64 ? 2 : 3),
         }), SIGNATURES.matrix),
         discontinue: DISCONTINUE_RULES.mr,
       },
@@ -151,7 +161,7 @@ export function buildSession(seed = randomSeed()) {
       {
         id: 'ds', type: 'digit-span', name: 'Digit Span', domain: 'wm',
         prompt: 'Watch the digits, then type them back.',
-        sections: buildDigitSpanSections(rng),
+        sections: buildDigitSpanSections(rng, short),
       },
       {
         id: 'pc', type: 'picture-span', name: 'Picture Span', domain: 'wm',
@@ -163,7 +173,7 @@ export function buildSession(seed = randomSeed()) {
         prompt: 'Type the digit that matches each symbol, as fast as you can.',
         key: generateCodingKey(rng),
         sequence: generateCodingSequence(rng, 160),
-        duration: TIME_LIMITS.coding,
+        duration: short ? SHORT_FORM_PLAN.cd.seconds : TIME_LIMITS.coding,
       },
       {
         id: 'ss', type: 'symbol-search', name: 'Symbol Search', domain: 'ps',
@@ -171,14 +181,21 @@ export function buildSession(seed = randomSeed()) {
         rows: Array.from({ length: 80 }, () => generateSymbolSearchRow(rng)),
         duration: TIME_LIMITS.symbolSearch,
       },
-    ],
+  ];
+
+  return {
+    seed,
+    form,
+    createdAt: new Date().toISOString(),
+    subtests: short ? SHORT_FORM_SUBTESTS.map((id) => all.find((s) => s.id === id)) : all,
   };
 }
 
-function buildBlockDesignItems(rng) {
+function buildBlockDesignItems(rng, short = false) {
   // Three 2x2 items to establish the task, then five 3x3 items where the
-  // speed bonus produces most of the variance.
-  const sizes = [2, 2, 2, 3, 3, 3, 3, 3];
+  // speed bonus produces most of the variance. The short form keeps two of
+  // each: enough to learn the task and still be scored on the harder size.
+  const sizes = short ? [2, 2, 3, 3] : [2, 2, 2, 3, 3, 3, 3, 3];
   return distinctItems(sizes.length, (i) => ({
     index: i,
     timeLimit: sizes[i] === 2 ? TIME_LIMITS.bd2 : TIME_LIMITS.bd3,
@@ -188,7 +205,7 @@ function buildBlockDesignItems(rng) {
   }), SIGNATURES.blockDesign);
 }
 
-function buildDigitSpanSections(rng) {
+function buildDigitSpanSections(rng, short = false) {
   const section = (mode, label, instruction, spans) => ({
     mode,
     label,
@@ -199,6 +216,16 @@ function buildDigitSpanSections(rng) {
       digits: buildDigitRun(rng, span),
     }))),
   });
+
+  if (short) {
+    // Forward and backward only, stopping short of the longest spans. The two
+    // conditions differ in kind, so dropping one would change what the subtest
+    // measures; dropping Sequencing, the least distinct of the three, does not.
+    return [
+      section('forward', 'Forward', 'Type the digits in the same order.', [2, 3, 4, 5, 6]),
+      section('backward', 'Backward', 'Type the digits in reverse order.', [2, 3, 4, 5]),
+    ];
+  }
 
   return [
     section('forward', 'Forward', 'Type the digits in the same order.',
@@ -393,15 +420,22 @@ export function scoreSession(session, allResponses) {
   const raw = {};
   const scaled = {};
 
+  // A shortened subtest has a different raw-score range, so it must be read
+  // against its own reference. Using the full-form one would treat a short
+  // subtest's maximum as an average performance.
+  const toScaled = session.form === 'short' ? shortFormRawToScaled : rawToScaledScore;
+
   for (const subtest of session.subtests) {
     const rawScore = scoreSubtest(subtest, allResponses[subtest.id]);
     raw[subtest.id] = rawScore;
-    scaled[subtest.id] = rawScore == null ? null : rawToScaledScore(subtest.id, rawScore);
+    scaled[subtest.id] = rawScore == null ? null : toScaled(subtest.id, rawScore);
   }
 
-  // Every primary subtest must appear, so a skipped one reads as absent rather
-  // than as missing from the object entirely.
+  // Every subtest the form administers must appear, so a skipped one reads as
+  // absent rather than as missing from the object entirely.
+  const administered = new Set(session.subtests.map((s) => s.id));
   for (const subtest of SUBTESTS) {
+    if (!administered.has(subtest.id)) continue;
     if (!(subtest.id in raw)) { raw[subtest.id] = null; scaled[subtest.id] = null; }
   }
 

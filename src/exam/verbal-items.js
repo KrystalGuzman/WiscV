@@ -784,15 +784,19 @@ export const VOCABULARY_TIER_COUNT = VOCABULARY_TIERS.length;
  * which would shift raw scores against a reference distribution that assumes a
  * fixed ramp. One per tier holds the ramp exactly.
  */
-export function drawTieredItems(items, tierCount, rng) {
+export function drawTieredItems(items, tierCount, rng, { tiers = null } = {}) {
   const byTier = new Map();
   for (const item of items) {
     if (!byTier.has(item.tier)) byTier.set(item.tier, []);
     byTier.get(item.tier).push(item);
   }
 
+  // A short form takes a subset of tiers — every other one, say — so that it
+  // still spans the full difficulty range with fewer items.
+  const wanted = tiers ?? Array.from({ length: tierCount }, (_, i) => i + 1);
+
   const drawn = [];
-  for (let tier = 1; tier <= tierCount; tier += 1) {
+  for (const tier of wanted) {
     const candidates = byTier.get(tier);
     if (!candidates || candidates.length === 0) {
       throw new Error(`Verbal bank has no items in tier ${tier}`);
@@ -800,6 +804,13 @@ export function drawTieredItems(items, tierCount, rng) {
     drawn.push(rng.pick(candidates));
   }
   return drawn;
+}
+
+/** Every other tier, spanning the full range in roughly `count` steps. */
+export function spacedTiers(tierCount, count) {
+  if (count >= tierCount) return Array.from({ length: tierCount }, (_, i) => i + 1);
+  const step = (tierCount - 1) / (count - 1);
+  return Array.from({ length: count }, (_, i) => Math.round(1 + i * step));
 }
 
 /** Symbols for the Picture Span task: distinct, and quick to take in. */

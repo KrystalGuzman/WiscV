@@ -147,8 +147,11 @@ export function parseScaledScore(value) {
  * Returns null when any constituent subtest is missing: a composite computed
  * from a partial set would be silently wrong, so it is withheld instead.
  */
-export function scoreComposite(compositeId, scaledScores, options = {}) {
-  const composite = getComposite(compositeId);
+export function scoreComposite(compositeRef, scaledScores, options = {}) {
+  // Accepts an id from the standard set, or a definition object — a short form
+  // builds different composites from the same subtests, and both should go
+  // through one scorer rather than two.
+  const composite = typeof compositeRef === 'string' ? getComposite(compositeRef) : compositeRef;
   const missing = composite.subtests.filter((id) => scaledScores[id] == null);
   if (missing.length > 0) {
     return {
@@ -323,7 +326,16 @@ export function compareSubtests(idA, idB, scaledScores, alpha = 0.05) {
  * @param {'fsiq'|'primary'} options.swReference  reference set for strengths/weaknesses
  */
 export function scoreProtocol(scaledScores, options = {}) {
-  const { alpha = 0.05, basis = 'true', swReference = 'fsiq' } = options;
+  const {
+    alpha = 0.05,
+    basis = 'true',
+    swReference = 'fsiq',
+    // The composite set to report, and which pairs to compare. A short form
+    // supplies its own; everything else about the scoring is identical.
+    composites: compositeSet = COMPOSITES,
+    comparisons = INDEX_COMPARISONS,
+    referenceIds: swIds = null,
+  } = options;
 
   const subtests = SUBTESTS.map((s) => {
     const score = scaledScores[s.id] ?? null;
@@ -340,25 +352,26 @@ export function scoreProtocol(scaledScores, options = {}) {
   });
 
   const composites = {};
-  for (const c of COMPOSITES) {
-    composites[c.id] = scoreComposite(c.id, scaledScores, { basis });
+  for (const c of compositeSet) {
+    composites[c.id] = scoreComposite(c, scaledScores, { basis });
   }
 
-  const referenceIds = swReference === 'primary'
-    ? SUBTESTS.map((s) => s.id)
-    : getComposite('FSIQ').subtests;
+  const referenceIds = swIds
+    ?? (swReference === 'primary' ? SUBTESTS.map((s) => s.id) : getComposite('FSIQ').subtests);
 
-  const indexComparisons = INDEX_COMPARISONS
-    .filter(([x, y]) => composites[x].complete && composites[y].complete)
+  const indexComparisons = comparisons
+    .filter(([x, y]) => composites[x]?.complete && composites[y]?.complete)
     .map(([x, y]) => compareComposites(composites[x], composites[y], alpha));
 
   const subtestComparisons = SUBTEST_COMPARISONS
     .map(([x, y]) => compareSubtests(x, y, scaledScores, alpha))
     .filter(Boolean);
 
+
   return {
     subtests,
     composites,
+    compositeSet,
     strengthsAndWeaknesses: strengthsAndWeaknesses(scaledScores, referenceIds, alpha),
     indexComparisons,
     subtestComparisons,

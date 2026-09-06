@@ -16,6 +16,10 @@ import {
 import { scoreProtocol } from '../core/scoring.js';
 import { formatPercentileLabel } from '../core/stats.js';
 import { REFERENCE_DISTRIBUTIONS, scaledCeilings } from '../exam/reference.js';
+import {
+  SHORT_FORM_COMPOSITES, SHORT_FORM_COMPARISONS, SHORT_FORM_SUBTESTS,
+  SHORT_FORM_REFERENCE, shortFormRawToScaled,
+} from '../exam/short-form.js';
 import { renderProfileChart } from './charts.js';
 
 const $ = (id) => document.getElementById(id);
@@ -60,51 +64,108 @@ function render(data) {
   const scaled = data.scaled ?? {};
   const raw = data.raw ?? {};
   const presentation = data.presentation ?? {};
-  const results = scoreProtocol(scaled, { alpha: 0.05, basis: 'true', swReference: 'fsiq' });
 
-  renderSubtitle(data, results);
-  renderCards(results);
-  renderCharts(results);
-  renderSubtestTable(results, raw, scaled, presentation);
+  // The short form measures each area with one subtest, so it reports its own
+  // composites — deliberately named as estimates, since a number built from a
+  // single subtest is not the index the full form produces.
+  const short = data.form === 'short';
+  const form = short
+    ? {
+        short: true,
+        composites: SHORT_FORM_COMPOSITES,
+        comparisons: SHORT_FORM_COMPARISONS,
+        subtestIds: SHORT_FORM_SUBTESTS,
+        reference: SHORT_FORM_REFERENCE,
+        headline: 'GEN',
+        ceilings: Object.fromEntries(SHORT_FORM_SUBTESTS.map((id) =>
+          [id, shortFormRawToScaled(id, SHORT_FORM_REFERENCE[id].maxRaw)])),
+      }
+    : {
+        short: false,
+        composites: COMPOSITES,
+        comparisons: null,
+        subtestIds: SUBTESTS.map((s) => s.id),
+        reference: REFERENCE_DISTRIBUTIONS,
+        headline: 'FSIQ',
+        ceilings: scaledCeilings(),
+      };
+
+  const results = scoreProtocol(scaled, {
+    alpha: 0.05,
+    basis: 'true',
+    swReference: 'fsiq',
+    composites: form.composites,
+    ...(form.comparisons ? { comparisons: form.comparisons } : {}),
+    ...(form.short ? { referenceIds: form.subtestIds } : {}),
+  });
+
+  renderSubtitle(data, results, form);
+  renderCards(results, form);
+  renderCharts(results, form);
+  renderSubtestTable(results, raw, scaled, presentation, form);
   renderStrengthsWeaknesses(results);
   renderComparisons(results);
-  renderCaveats(results, scaled, presentation);
+  renderCaveats(results, scaled, presentation, form);
   wireActions(data, scaled);
 }
 
-function renderSubtitle(data, results) {
-  const entered = results.completeness.entered;
-  const fsiq = results.composites.FSIQ;
-  const parts = [`${entered} of 10 tasks completed`];
-  if (fsiq.complete) parts.push(`overall ${fsiq.score}`);
+function renderSubtitle(data, results, form) {
+  const total = form.subtestIds.length;
+  const entered = results.subtests.filter(
+    (s) => form.subtestIds.includes(s.id) && s.score != null).length;
+
+  const headline = results.composites[form.headline];
+  const parts = [`${entered} of ${total} tasks completed`];
+  if (headline?.complete) parts.push(`overall ${headline.score}`);
   if (data.seed != null) parts.push(`session ${data.seed}`);
   $('result-subtitle').textContent = parts.join(' · ');
+
+  // Say which version produced this, beside the title, so a short-form result
+  // is never mistaken for a full one at a glance.
+  const badge = $('form-badge');
+  if (badge) {
+    badge.textContent = form.short ? 'Short version' : 'Full version';
+    badge.hidden = false;
+  }
 }
 
 // --- Composite cards --------------------------------------------------------
 
-function renderCards(results) {
-  const indexes = COMPOSITES.filter((c) => c.primary && c.id !== 'FSIQ');
-  fillCards($('fsiq-card'), [getComposite('FSIQ')], results);
-  fillCards($('composite-cards'), indexes, results);
-  fillCards($('ancillary-cards'), COMPOSITES.filter((c) => !c.primary), results);
+function renderCards(results, form) {
+  const headline = form.composites.find((c) => c.id === form.headline);
+  const areas = form.composites.filter((c) => c.primary && c.id !== form.headline);
+  const ancillary = form.composites.filter((c) => !c.primary);
+
+  fillCards($('fsiq-card'), [headline], results, form);
+  fillCards($('composite-cards'), areas, results, form);
+  fillCards($('ancillary-cards'), ancillary, results, form);
+
+  // The short form produces no ancillary composites, so its heading would sit
+  // above an empty row.
+  const ancillaryHeading = [...document.querySelectorAll('.subhead')]
+    .find((node) => node.textContent.includes('Ancillary'));
+  if (ancillaryHeading) ancillaryHeading.hidden = ancillary.length === 0;
 
   const complete = Object.values(results.composites).filter((c) => c.complete).length;
-  $('completeness-note').textContent =
-    `${complete} of ${COMPOSITES.length} composites could be computed. A composite is ` +
-    'left out entirely when any task it depends on was skipped.';
+  $('completeness-note').textContent = form.short
+    ? `${complete} of ${form.composites.length} could be computed. Each area here rests on ` +
+      'a single task, so these are estimates with wider margins than the full version ' +
+      'produces — see the notes at the foot of the page.'
+    : `${complete} of ${form.composites.length} composites could be computed. A composite is ` +
+      'left out entirely when any task it depends on was skipped.';
 }
 
-function fillCards(container, definitions, results) {
+function fillCards(container, definitions, results, form) {
   container.replaceChildren();
   for (const definition of definitions) {
     const composite = results.composites[definition.id];
     const card = document.createElement('div');
     card.className = 'score-card';
-    if (definition.id === 'FSIQ') card.classList.add('is-fsiq');
+    if (definition.id === form.headline) card.classList.add('is-fsiq');
     if (!composite.complete) card.classList.add('is-incomplete');
 
-    card.append(text('div', 'card-label', definition.id === 'FSIQ' ? 'Overall' : definition.id));
+    card.append(text('div', 'card-label',
+      definition.id === form.headline ? 'Overall' : definition.id));
 
     if (!composite.complete) {
       card.append(text('div', 'card-score', '–'));
@@ -127,8 +188,8 @@ function fillCards(container, definitions, results) {
 
 // --- Charts -----------------------------------------------------------------
 
-function renderCharts(results) {
-  const compositePoints = COMPOSITES.filter((c) => c.primary).map((definition) => {
+function renderCharts(results, form) {
+  const compositePoints = form.composites.filter((c) => c.primary).map((definition) => {
     const composite = results.composites[definition.id];
     const ci = composite.complete ? composite.intervals[0.95] : null;
     return {
@@ -144,23 +205,28 @@ function renderCharts(results) {
   }, { showIntervals: true, ariaLabel: 'Area score profile with 95% confidence intervals' });
 
   renderProfileChart($('chart-subtests'),
-    results.subtests.map((s) => ({ label: s.abbr, score: s.score })), {
+    results.subtests
+      .filter((s) => form.subtestIds.includes(s.id))
+      .map((s) => ({ label: s.abbr, score: s.score })), {
       min: 1, max: 19, mean: SUBTEST_SCALE.mean, sd: SUBTEST_SCALE.sd, step: 3,
     }, { ariaLabel: 'Subtest score profile' });
 }
 
 // --- Per-task table ---------------------------------------------------------
 
-function renderSubtestTable(results, raw, scaled, presentation = {}) {
+function renderSubtestTable(results, raw, scaled, presentation = {}, form) {
   const body = $('subtest-table').querySelector('tbody');
   body.replaceChildren();
 
   const domainName = Object.fromEntries(DOMAINS.map((d) => [d.id, d.name]));
-  const ceilings = scaledCeilings();
+  const ceilings = form.ceilings;
   const capped = [];
 
-  for (const subtest of results.subtests) {
-    const reference = REFERENCE_DISTRIBUTIONS[subtest.id];
+  // Only the tasks this form administers; the rest were never asked.
+  const administered = results.subtests.filter((s) => form.subtestIds.includes(s.id));
+
+  for (const subtest of administered) {
+    const reference = form.reference[subtest.id];
     const row = document.createElement('tr');
 
     if (subtest.score == null) {
@@ -202,6 +268,13 @@ function renderSubtestTable(results, raw, scaled, presentation = {}) {
 
   const notes = [];
 
+  if (form.short) {
+    notes.push(
+      'These are the shortened versions of each task, scored against their own ' +
+      'reference figures — a raw score here is out of fewer items than the full ' +
+      'version uses, so the two are not directly comparable as raw numbers.');
+  }
+
   // Digit Span is a listening task. If it ran visually, the score is not
   // comparable, and saying so is more useful than a footnote nobody reads.
   if (presentation.ds === 'visual' && scaled.ds != null) {
@@ -215,7 +288,8 @@ function renderSubtestTable(results, raw, scaled, presentation = {}) {
   notes.push(
     'A short test cannot separate performances at the very top. The highest scaled ' +
     'score each task can yield here is: ' +
-    SUBTESTS.map((s) => `${s.abbr} ${ceilings[s.id]}`).join(', ') + '.');
+    SUBTESTS.filter((s) => form.subtestIds.includes(s.id))
+      .map((s) => `${s.abbr} ${ceilings[s.id]}`).join(', ') + '.');
   if (capped.length > 0) {
     notes.push(`You reached the maximum raw score on ${capped.join(', ')}, so your score ` +
       'there is a floor on your ability, not a measure of it.');
@@ -325,7 +399,7 @@ function renderComparisons(results) {
 
 // --- Caveats ----------------------------------------------------------------
 
-function renderCaveats(results, scaled, presentationMode = {}) {
+function renderCaveats(results, scaled, presentationMode = {}, form = { short: false }) {
   const host = $('caveats');
   host.replaceChildren();
 
@@ -353,6 +427,18 @@ function renderCaveats(results, scaled, presentationMode = {}) {
      'thing here, because it does not depend on the reference distribution being right.'],
   ];
 
+  // The short form's central limitation, stated where it will be read rather
+  // than left implicit in a wider confidence interval.
+  if (form.short) {
+    points.unshift(['This was the short version.',
+      'Each area was measured by one task rather than two. That halves the evidence ' +
+      'behind every area score and leaves each one carrying the quirks of a single ' +
+      'task — a child who dislikes being timed looks weak on Processing Speed here, ' +
+      'where the full version would show it on both speeded tasks or on neither. ' +
+      'The margins shown are correspondingly wider. Treat this as a quick look, and ' +
+      'use the full version where the answer matters.']);
+  }
+
   // Point at the actual pattern in front of the reader, when there is one.
   if (presentationMode.ds === 'auditory') {
     points.push(['Digit Span was heard, not seen.',
@@ -366,7 +452,7 @@ function renderCaveats(results, scaled, presentationMode = {}) {
       'as inflated.']);
   }
 
-  const spread = spreadOf(scaled);
+  const spread = spreadOf(scaled, form.subtestIds);
   if (spread != null && spread >= 6) {
     points.push(['Your profile is uneven.',
       `Your highest and lowest task scores differ by ${spread} scaled points. On a real ` +
@@ -383,8 +469,11 @@ function renderCaveats(results, scaled, presentationMode = {}) {
   }
 }
 
-function spreadOf(scaled) {
-  const scores = Object.values(scaled).filter((v) => v != null);
+function spreadOf(scaled, subtestIds = null) {
+  const entries = subtestIds
+    ? subtestIds.map((id) => scaled[id])
+    : Object.values(scaled);
+  const scores = entries.filter((v) => v != null);
   if (scores.length < 2) return null;
   return Math.max(...scores) - Math.min(...scores);
 }
@@ -399,7 +488,8 @@ function wireActions(data, scaled) {
       format: 'wiscv-calculator-protocol',
       version: 1,
       savedAt: new Date().toISOString(),
-      source: 'practice-test',
+      source: data.form === 'short' ? 'practice-test (short version)' : 'practice-test',
+      form: data.form ?? 'full',
       seed: data.seed ?? null,
       examinee: { id: `practice-${data.seed ?? 'session'}`, examiner: '', dob: '', testDate: '' },
       scaledScores: scaled,
@@ -423,7 +513,18 @@ function wireActions(data, scaled) {
     .filter((s) => scaled[s.id] != null)
     .map((s) => `${s.id}=${scaled[s.id]}`)
     .join('&');
-  $('btn-calculator').href = query ? `index.html?${query}` : 'index.html';
+  const button = $('btn-calculator');
+  button.href = query ? `index.html?${query}` : 'index.html';
+
+  // The calculator builds each index from two subtests. A short-form result
+  // supplies one of each, so it will show those indexes as incomplete — worth
+  // saying up front rather than letting it look like a fault.
+  if (data.form === 'short') {
+    button.textContent = 'Open these task scores in the calculator';
+    button.title =
+      'The calculator builds each index from two tasks, so a short-version result ' +
+      'leaves them incomplete. The individual task scores still load.';
+  }
 }
 
 // --- Small DOM helpers ------------------------------------------------------

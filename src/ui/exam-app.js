@@ -163,7 +163,8 @@ function showWelcome() {
   document.getElementById('seed-note').textContent =
     `Session seed ${seed}. Adding ?seed=${seed} to this page's address reproduces exactly this test.`;
 
-  document.getElementById('btn-start').addEventListener('click', () => startSession(seed));
+  $('btn-start-short').addEventListener('click', () => startSession(seed, 'short'));
+  $('btn-start-full').addEventListener('click', () => startSession(seed, 'full'));
 
   $('f-captions').addEventListener('change', (event) => {
     state.captions = event.target.checked;
@@ -204,8 +205,8 @@ function reportAudio(outcome) {
   }
 }
 
-function startSession(seed) {
-  state.session = buildSession(seed);
+function startSession(seed, form = 'full') {
+  state.session = buildSession(seed, { form });
   state.responses = {};
   state.subtestIndex = 0;
   state.completed = 0;
@@ -370,7 +371,7 @@ function showIntro() {
   const intro = INTRODUCTIONS[subtest.id];
 
   document.getElementById('intro-eyebrow').textContent =
-    `Subtest ${state.subtestIndex + 1} of ${state.session.subtests.length}`;
+    `Task ${state.subtestIndex + 1} of ${state.session.subtests.length}`;
   document.getElementById('intro-title').textContent = subtest.name;
   document.getElementById('intro-lede').textContent = intro.lede;
 
@@ -1373,6 +1374,7 @@ function finish() {
   const payload = {
     format: 'wiscv-practice-result',
     version: 1,
+    form: state.session.form ?? 'full',
     seed: state.session.seed,
     completedAt: new Date().toISOString(),
     raw,
@@ -1390,7 +1392,8 @@ function finish() {
   }
 
   const encoded = encodeURIComponent(btoa(JSON.stringify({
-    seed: payload.seed, raw, scaled, presentation: payload.presentation,
+    seed: payload.seed, form: payload.form, raw, scaled,
+    presentation: payload.presentation,
   })));
   window.location.href = `results.html?r=${encoded}`;
 }

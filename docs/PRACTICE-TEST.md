@@ -107,6 +107,82 @@ fair reflection of the child at all. None of that happens here, and the free
 responses a real examiner scores by rubric are replaced by forced choice. The
 report says this too.
 
+## Two lengths
+
+The full battery runs ten subtests over 25–35 minutes. Tried with real
+children, that is too much: attention runs out well before the battery does,
+and a score collected from a tired or overwhelmed child measures the tiredness.
+
+There is a **short version** of about 10–15 minutes, chosen on the welcome
+screen. It runs five subtests — one per area — on the same engine, with the same
+spoken administration and the same report.
+
+| | Full | Short |
+| --- | --- | --- |
+| Subtests | 10 (two per area) | 5 (one per area) |
+| Presented units | 132 | 39 |
+| Time | 25–35 min | 10–15 min |
+| Verbal Comprehension | Similarities + Vocabulary | Vocabulary |
+| Visual Spatial | Block Design + Visual Puzzles | Block Design |
+| Fluid Reasoning | Matrix Reasoning + Figure Weights | Matrix Reasoning |
+| Working Memory | Digit Span + Picture Span | Digit Span (forward and backward) |
+| Processing Speed | Coding + Symbol Search | Coding (60s) |
+
+All five areas are kept because the *shape* of the profile across areas is the
+most useful thing the report produces; dropping an area would remove it.
+
+### What the short version costs
+
+An area measured by one subtest is far less reliable than one measured by two,
+and a single subtest carries its own task-specific quirks with nothing to
+average them out — a child who dislikes being timed looks weak on Processing
+Speed here, where the full version would show it on both speeded tasks or on
+neither.
+
+So the short version reports **estimates** with their own names (VCE, VSE, FRE,
+WME, PSE and an Overall) rather than the full version's index scores, and their
+confidence intervals are visibly wider:
+
+| Area | Full form SEM | Short form SEM |
+| --- | ---: | ---: |
+| Verbal Comprehension | 4.05 | 4.97 |
+| Visual Spatial | 4.56 | 6.00 |
+| Fluid Reasoning | 4.00 | 5.61 |
+| Working Memory | 4.35 | 4.50 |
+| Processing Speed | 5.07 | 6.00 |
+| Overall | 2.99 | 3.64 |
+
+Reusing the labels VCI, VSI and so on would have invited exactly the comparison
+the short version cannot support, so it does not.
+
+### Which subtests, and why
+
+Chosen for reliability within the area, except once. The reasons are recorded
+as data in [`src/exam/short-form.js`](../src/exam/short-form.js), and a test
+checks the record against the model so the claim cannot drift from the numbers.
+
+The exception is Fluid Reasoning. Figure Weights is the more reliable subtest
+(.93 against .86), but it requires understanding balance scales and doing
+arithmetic — a heavy instruction load for a child who is already flagging, and
+it confounds reasoning with numeracy. Matrix Reasoning asks only "which one
+goes here", so it is the pick despite being the weaker measure on paper.
+
+### How the short version is scored
+
+A shortened subtest has a different raw-score range, so it is read against its
+own reference figures, derived from the full-form estimates rather than invented
+separately.
+
+The mean scales with the proportion retained: half the items, half the expected
+raw score. **The standard deviation does not**, and the difference matters. For
+a sum of correlated items the variance goes as `k(1 + (k−1)r)`, so halving the
+items cuts the SD by rather more than half. Scaling both proportionally would
+make short-form scores look far more extreme than they are — a raw score one
+point above average would come out as a scaled 12 instead of an 11.
+
+Coding is different again: its score is a count accumulated at a steady rate, so
+both mean and SD scale directly with time.
+
 ## The ten tasks
 
 | Area | Task | Format | Items | Timing |

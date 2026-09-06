@@ -3,9 +3,12 @@
 Two dependency-free web apps sharing one scoring engine:
 
 - **[Practice test](docs/PRACTICE-TEST.md)** (`exam.html`) — take an original
-  ten-task cognitive test built in the same formats the WISC-V uses, **read aloud
-  by a synthetic examiner** as the real one is administered, and get a full
-  profile of how you did. About 25–35 minutes.
+  cognitive test built in the same formats the WISC-V uses, **read aloud by a
+  synthetic examiner** as the real one is administered, and get a full profile of
+  how you did. Choose the **full version** (ten tasks, 25–35 minutes) or the
+  **[short version](docs/PRACTICE-TEST.md#two-lengths)** (five tasks, 10–15
+  minutes) — the short one exists because the full battery proved too much for
+  real children.
 - **[Practice areas](docs/PRACTICE-TEST.md#the-practice-areas)** (`practice.html`) —
   drill any one task on its own, untimed and unscored, with an **Explain this
   problem** walkthrough before you answer and a full explanation after. The test
@@ -167,6 +170,25 @@ does. The report shows your raw score and the reference mean beside every
 converted score, so you can see what the conversion is doing rather than take it
 on faith. Full detail in [docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md).
 
+## Two lengths
+
+The full battery is ten subtests over 25–35 minutes. Testing with children
+showed that attention runs out long before the battery does, and a score
+collected from a tired child measures the tiredness.
+
+The short version runs five subtests — one per area — in 10–15 minutes, on the
+same engine with the same spoken administration and the same report. All five
+areas are kept, because the shape of the profile across areas is the most useful
+thing the report produces.
+
+The cost is stated rather than hidden: one subtest per area is far less reliable
+than two, so the short version reports **estimates** under their own names, with
+visibly wider intervals, and the report leads with a caveat saying so. Its
+subtests are read against their own reference figures, derived from the
+full-form ones — and the standard deviation is scaled by the correlated-sum
+formula rather than proportionally, since halving a subtest cuts its SD by less
+than half. See [docs/PRACTICE-TEST.md](docs/PRACTICE-TEST.md#two-lengths).
+
 ## Spoken administration
 
 The WISC-V is given one to one: an examiner reads standardised instructions and
@@ -242,6 +264,7 @@ src/exam/rng.js         seeded random numbers
 src/exam/generators.js  procedural item generation, with self-verification
 src/exam/verbal-items.js  hand-written verbal banks: 112 items each, in difficulty tiers
 src/exam/administration.js  the examiner's spoken script, samples, repetition rules
+src/exam/short-form.js  the condensed battery: which subtests, why, and its reference scaling
 src/exam/reference.js   the estimated reference distribution (the "not norms" file)
 src/exam/session.js     test construction, discontinue rules, raw scoring
 src/exam/explain.js     plain-language explanations of why an answer is what it is
@@ -317,6 +340,10 @@ On the practice test:
 - `estimateSpeechMs` treats absent input as silence rather than as the word
   "null", and over-estimates deliberately, since it is a deadline for giving up
   on speech events and firing early cuts the examiner off mid-sentence.
+- The short form covers every area exactly once, its area estimates are provably
+  *less* precise than the full form's indexes, its labels never collide with the
+  full form's, and its raw-score SDs shrink more slowly than its means — the
+  scaling error that would make short results look artificially extreme.
 - `asFraction` refuses a float rather than emitting nonsense: a ratio recovered
   from a division has already lost the exact fraction.
 
